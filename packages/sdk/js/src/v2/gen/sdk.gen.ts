@@ -130,7 +130,6 @@ import type {
   PermissionRuleset,
   PermissionV2Reply,
   PermissionV2Source,
-  ProfileSnapshot,
   ProjectCommands,
   ProjectCurrentErrors,
   ProjectCurrentResponses,
@@ -364,12 +363,6 @@ import type {
   V2SessionPermissionListResponses,
   V2SessionPermissionReplyErrors,
   V2SessionPermissionReplyResponses,
-  V2SessionProfileErrors,
-  V2SessionProfileResetErrors,
-  V2SessionProfileResetResponses,
-  V2SessionProfileResponses,
-  V2SessionProfileSetErrors,
-  V2SessionProfileSetResponses,
   V2SessionPromptErrors,
   V2SessionPromptResponses,
   V2SessionQuestionListErrors,
@@ -394,20 +387,12 @@ import type {
   V2SkillListResponses,
   VcsApplyErrors,
   VcsApplyResponses,
-  VcsBranchesErrors,
-  VcsBranchesResponses,
-  VcsCheckoutErrors,
-  VcsCheckoutResponses,
-  VcsCommitDiffErrors,
-  VcsCommitDiffResponses,
   VcsDiffErrors,
   VcsDiffRawErrors,
   VcsDiffRawResponses,
   VcsDiffResponses,
   VcsGetErrors,
   VcsGetResponses,
-  VcsLogErrors,
-  VcsLogResponses,
   VcsStatusErrors,
   VcsStatusResponses,
   WorktreeCreateErrors,
@@ -2033,40 +2018,6 @@ export class Diff extends HeyApiClient {
   }
 }
 
-export class Commit extends HeyApiClient {
-  /**
-   * Get commit diff
-   *
-   * Retrieve the file diffs introduced by a specific commit.
-   */
-  public diff<ThrowOnError extends boolean = false>(
-    parameters: {
-      hash: string
-      directory?: string
-      workspace?: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "hash" },
-            { in: "query", key: "directory" },
-            { in: "query", key: "workspace" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).get<VcsCommitDiffResponses, VcsCommitDiffErrors, ThrowOnError>({
-      url: "/vcs/commit/{hash}/diff",
-      ...options,
-      ...params,
-    })
-  }
-}
-
 export class Vcs extends HeyApiClient {
   /**
    * Get VCS info
@@ -2199,117 +2150,9 @@ export class Vcs extends HeyApiClient {
     })
   }
 
-  /**
-   * Get VCS commit log
-   *
-   * Retrieve the commit history for the current project, including parent hashes for graph layout.
-   */
-  public log<ThrowOnError extends boolean = false>(
-    parameters?: {
-      directory?: string
-      workspace?: string
-      limit?: string
-      branch?: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "query", key: "directory" },
-            { in: "query", key: "workspace" },
-            { in: "query", key: "limit" },
-            { in: "query", key: "branch" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).get<VcsLogResponses, VcsLogErrors, ThrowOnError>({
-      url: "/vcs/log",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
-   * Get VCS branches
-   *
-   * List local and remote branches for the current project.
-   */
-  public branches<ThrowOnError extends boolean = false>(
-    parameters?: {
-      directory?: string
-      workspace?: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "query", key: "directory" },
-            { in: "query", key: "workspace" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).get<VcsBranchesResponses, VcsBranchesErrors, ThrowOnError>({
-      url: "/vcs/branches",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
-   * Checkout VCS branch
-   *
-   * Switch the current branch. Returns reason 'dirty' when uncommitted changes exist unless force is true.
-   */
-  public checkout<ThrowOnError extends boolean = false>(
-    parameters?: {
-      directory?: string
-      workspace?: string
-      branch?: string
-      force?: boolean
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "query", key: "directory" },
-            { in: "query", key: "workspace" },
-            { in: "body", key: "branch" },
-            { in: "body", key: "force" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).post<VcsCheckoutResponses, VcsCheckoutErrors, ThrowOnError>({
-      url: "/vcs/checkout",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    })
-  }
-
   private _diff?: Diff
   get diff2(): Diff {
     return (this._diff ??= new Diff({ client: this.client }))
-  }
-
-  private _commit?: Commit
-  get commit(): Commit {
-    return (this._commit ??= new Commit({ client: this.client }))
   }
 }
 
@@ -5240,68 +5083,6 @@ export class Agent extends HeyApiClient {
   }
 }
 
-export class Profile extends HeyApiClient {
-  /**
-   * Set session profile
-   *
-   * Upsert the session-level profile. Fields set here override config; others inherit.
-   */
-  public set<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-      profile?: ProfileSnapshot
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "sessionID" },
-            { in: "body", key: "profile" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).post<V2SessionProfileSetResponses, V2SessionProfileSetErrors, ThrowOnError>(
-      {
-        url: "/api/session/{sessionID}/profile/set",
-        ...options,
-        ...params,
-        headers: {
-          "Content-Type": "application/json",
-          ...options?.headers,
-          ...params.headers,
-        },
-      },
-    )
-  }
-
-  /**
-   * Reset session profile
-   *
-   * Remove the session-level profile so it fully inherits from config.
-   */
-  public reset<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "sessionID" }] }])
-    return (options?.client ?? this.client).post<
-      V2SessionProfileResetResponses,
-      V2SessionProfileResetErrors,
-      ThrowOnError
-    >({
-      url: "/api/session/{sessionID}/profile/reset",
-      ...options,
-      ...params,
-    })
-  }
-}
-
 export class Revert extends HeyApiClient {
   /**
    * Stage session revert
@@ -5834,25 +5615,6 @@ export class Session3 extends HeyApiClient {
   }
 
   /**
-   * Get session profile
-   *
-   * Return the stored session-level profile snapshot. The config-level profile is merged by the runner via field-level overlay.
-   */
-  public profile<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "sessionID" }] }])
-    return (options?.client ?? this.client).get<V2SessionProfileResponses, V2SessionProfileErrors, ThrowOnError>({
-      url: "/api/session/{sessionID}/profile",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
    * Send message
    *
    * Durably admit one session input and schedule agent-loop execution unless resume is false.
@@ -6093,11 +5855,6 @@ export class Session3 extends HeyApiClient {
       ...options,
       ...params,
     })
-  }
-
-  private _profile?: Profile
-  get profile2(): Profile {
-    return (this._profile ??= new Profile({ client: this.client }))
   }
 
   private _revert?: Revert

@@ -1768,9 +1768,13 @@ export type ProviderConfig = {
       temperature?: boolean
       tool_call?: boolean
       interleaved?:
-        | true
+        | boolean
+        | "reasoning"
+        | "reasoning_content"
+        | "reasoning_text"
+        | string
         | {
-            field: "reasoning" | "reasoning_content" | "reasoning_details"
+            field: "reasoning" | "reasoning_content" | "reasoning_text" | string
           }
       cost?: {
         input: number
@@ -2023,7 +2027,6 @@ export type Config = {
     mcp_timeout?: number
     policies?: Array<ConfigV2ExperimentalPolicy>
   }
-  profile?: ProfileInfo
 }
 
 export type Model = {
@@ -2058,7 +2061,7 @@ export type Model = {
     interleaved:
       | boolean
       | {
-          field: "reasoning" | "reasoning_content" | "reasoning_details"
+          field: "reasoning" | "reasoning_content" | "reasoning_text" | string
         }
   }
   cost: {
@@ -2330,32 +2333,6 @@ export type VcsApplyError = {
   data: {
     message: string
     reason: "non-git" | "not-clean"
-  }
-}
-
-export type VcsCommit = {
-  hash: string
-  parents: Array<string>
-  author: string
-  email: string
-  date: string
-  message: string
-  refs: Array<string>
-}
-
-export type VcsBranch = {
-  name: string
-  ref: string
-  kind: "local" | "remote"
-  current: boolean
-  upstream?: string
-}
-
-export type VcsCheckoutError = {
-  name: "VcsCheckoutError"
-  data: {
-    message: string
-    reason: "non-git" | "dirty" | "not-found" | "error"
   }
 }
 
@@ -2728,12 +2705,6 @@ export type SessionNotFoundError = {
   message: string
 }
 
-export type UnknownError1 = {
-  _tag: "UnknownError"
-  message: string
-  ref?: string
-}
-
 export type PromptInput = {
   text: string
   files?: Array<PromptInputFileAttachment>
@@ -2757,6 +2728,12 @@ export type MessageNotFoundError = {
   sessionID: string
   messageID: string
   message: string
+}
+
+export type UnknownError1 = {
+  _tag: "UnknownError"
+  message: string
+  ref?: string
 }
 
 export type SessionDurableEvent =
@@ -3867,49 +3844,6 @@ export type ConfigV2ExperimentalPolicy = {
   resource: string
 }
 
-export type SkillV2DirectorySource = {
-  type: "directory"
-  path: string
-}
-
-export type SkillV2UrlSource = {
-  type: "url"
-  url: string
-}
-
-export type SkillV2Info = {
-  name: string
-  description?: string
-  location: string
-  content: string
-}
-
-export type SkillV2EmbeddedSource = {
-  type: "embedded"
-  skill: SkillV2Info
-}
-
-export type ProfileSelection = {
-  enable?: Array<string>
-  disable?: Array<string>
-}
-
-export type ProfileSkills = {
-  sources?: Array<SkillV2Source>
-  selection?: ProfileSelection
-}
-
-export type ProfileRules = {
-  instructions?: Array<string>
-  inline?: string
-  selection?: ProfileSelection
-}
-
-export type ProfileInfo = {
-  skills?: ProfileSkills
-  rules?: ProfileRules
-}
-
 export type ProjectDirectories = Array<{
   directory: string
   strategy?: string
@@ -3993,11 +3927,6 @@ export type SessionV2Info = {
   location: LocationRef
   subpath?: string
   revert?: RevertState
-}
-
-export type ProfileSnapshot = {
-  skills?: ProfileSkills
-  rules?: ProfileRules
 }
 
 export type PromptInputFileAttachment = {
@@ -5082,6 +5011,14 @@ export type CommandV2Info = {
   agent?: string
   model?: ModelRef
   subtask?: boolean
+}
+
+export type SkillV2Info = {
+  name: string
+  description?: string
+  slash?: boolean
+  location: string
+  content: string
 }
 
 export type ModelsDevRefreshed = {
@@ -7134,6 +7071,21 @@ export type CredentialKey = {
   }
 }
 
+export type SkillV2DirectorySource = {
+  type: "directory"
+  path: string
+}
+
+export type SkillV2UrlSource = {
+  type: "url"
+  url: string
+}
+
+export type SkillV2EmbeddedSource = {
+  type: "embedded"
+  skill: SkillV2Info
+}
+
 export type BadRequestError = {
   name: "BadRequest"
   data: {
@@ -8330,125 +8282,6 @@ export type VcsApplyResponses = {
 }
 
 export type VcsApplyResponse = VcsApplyResponses[keyof VcsApplyResponses]
-
-export type VcsLogData = {
-  body?: never
-  path?: never
-  query?: {
-    directory?: string
-    workspace?: string
-    limit?: string
-    branch?: string
-  }
-  url: "/vcs/log"
-}
-
-export type VcsLogErrors = {
-  /**
-   * Bad request
-   */
-  400: BadRequestError
-}
-
-export type VcsLogError = VcsLogErrors[keyof VcsLogErrors]
-
-export type VcsLogResponses = {
-  /**
-   * VCS commit log
-   */
-  200: Array<VcsCommit>
-}
-
-export type VcsLogResponse = VcsLogResponses[keyof VcsLogResponses]
-
-export type VcsBranchesData = {
-  body?: never
-  path?: never
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/vcs/branches"
-}
-
-export type VcsBranchesErrors = {
-  /**
-   * Bad request
-   */
-  400: BadRequestError
-}
-
-export type VcsBranchesError = VcsBranchesErrors[keyof VcsBranchesErrors]
-
-export type VcsBranchesResponses = {
-  /**
-   * VCS branch list
-   */
-  200: Array<VcsBranch>
-}
-
-export type VcsBranchesResponse = VcsBranchesResponses[keyof VcsBranchesResponses]
-
-export type VcsCheckoutData = {
-  body?: {
-    branch: string
-    force?: boolean
-  }
-  path?: never
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/vcs/checkout"
-}
-
-export type VcsCheckoutErrors = {
-  /**
-   * VcsCheckoutError | InvalidRequestError
-   */
-  400: VcsCheckoutError | InvalidRequestError
-}
-
-export type VcsCheckoutError2 = VcsCheckoutErrors[keyof VcsCheckoutErrors]
-
-export type VcsCheckoutResponses = {
-  /**
-   * Branch switched
-   */
-  200: boolean
-}
-
-export type VcsCheckoutResponse = VcsCheckoutResponses[keyof VcsCheckoutResponses]
-
-export type VcsCommitDiffData = {
-  body?: never
-  path: {
-    hash: string
-  }
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/vcs/commit/{hash}/diff"
-}
-
-export type VcsCommitDiffErrors = {
-  /**
-   * Bad request
-   */
-  400: BadRequestError
-}
-
-export type VcsCommitDiffError = VcsCommitDiffErrors[keyof VcsCommitDiffErrors]
-
-export type VcsCommitDiffResponses = {
-  /**
-   * Commit diff
-   */
-  200: Array<VcsFileDiff>
-}
-
-export type VcsCommitDiffResponse = VcsCommitDiffResponses[keyof VcsCommitDiffResponses]
 
 export type CommandListData = {
   body?: never
@@ -11420,7 +11253,6 @@ export type V2HealthGetResponses = {
    */
   200: {
     healthy: true
-    pid: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
   }
 }
 
@@ -11717,129 +11549,6 @@ export type V2SessionSwitchModelResponses = {
 }
 
 export type V2SessionSwitchModelResponse = V2SessionSwitchModelResponses[keyof V2SessionSwitchModelResponses]
-
-export type V2SessionProfileData = {
-  body?: never
-  path: {
-    sessionID: string
-  }
-  query?: never
-  url: "/api/session/{sessionID}/profile"
-}
-
-export type V2SessionProfileErrors = {
-  /**
-   * InvalidRequestError
-   */
-  400: InvalidRequestError
-  /**
-   * UnauthorizedError
-   */
-  401: UnauthorizedError
-  /**
-   * SessionNotFoundError
-   */
-  404: SessionNotFoundError
-  /**
-   * UnknownError
-   */
-  500: UnknownError1
-}
-
-export type V2SessionProfileError = V2SessionProfileErrors[keyof V2SessionProfileErrors]
-
-export type V2SessionProfileResponses = {
-  /**
-   * Success
-   */
-  200: {
-    data: {
-      session?: ProfileSnapshot
-    }
-  }
-}
-
-export type V2SessionProfileResponse = V2SessionProfileResponses[keyof V2SessionProfileResponses]
-
-export type V2SessionProfileSetData = {
-  body: {
-    profile: ProfileSnapshot
-  }
-  path: {
-    sessionID: string
-  }
-  query?: never
-  url: "/api/session/{sessionID}/profile/set"
-}
-
-export type V2SessionProfileSetErrors = {
-  /**
-   * InvalidRequestError
-   */
-  400: InvalidRequestError
-  /**
-   * UnauthorizedError
-   */
-  401: UnauthorizedError
-  /**
-   * SessionNotFoundError
-   */
-  404: SessionNotFoundError
-  /**
-   * UnknownError
-   */
-  500: UnknownError1
-}
-
-export type V2SessionProfileSetError = V2SessionProfileSetErrors[keyof V2SessionProfileSetErrors]
-
-export type V2SessionProfileSetResponses = {
-  /**
-   * <No Content>
-   */
-  204: void
-}
-
-export type V2SessionProfileSetResponse = V2SessionProfileSetResponses[keyof V2SessionProfileSetResponses]
-
-export type V2SessionProfileResetData = {
-  body?: never
-  path: {
-    sessionID: string
-  }
-  query?: never
-  url: "/api/session/{sessionID}/profile/reset"
-}
-
-export type V2SessionProfileResetErrors = {
-  /**
-   * InvalidRequestError
-   */
-  400: InvalidRequestError
-  /**
-   * UnauthorizedError
-   */
-  401: UnauthorizedError
-  /**
-   * SessionNotFoundError
-   */
-  404: SessionNotFoundError
-  /**
-   * UnknownError
-   */
-  500: UnknownError1
-}
-
-export type V2SessionProfileResetError = V2SessionProfileResetErrors[keyof V2SessionProfileResetErrors]
-
-export type V2SessionProfileResetResponses = {
-  /**
-   * <No Content>
-   */
-  204: void
-}
-
-export type V2SessionProfileResetResponse = V2SessionProfileResetResponses[keyof V2SessionProfileResetResponses]
 
 export type V2SessionPromptData = {
   body: {
