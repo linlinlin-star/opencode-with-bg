@@ -20,7 +20,6 @@ export interface Info extends Schema.Schema.Type<typeof Info> {}
 export const Info = Schema.Struct({
   name: Schema.String,
   description: Schema.String.pipe(optional),
-  slash: Schema.Boolean.pipe(optional),
   location: AbsolutePath,
   content: Schema.String,
 }).annotate({ identifier: "SkillV2.Info" })

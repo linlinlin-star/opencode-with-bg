@@ -1,0 +1,307 @@
+.git-graph-scroll {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  cursor: pointer;
+  scrollbar-width: none;
+}
+
+.git-graph-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.git-graph-content {
+  position: relative;
+}
+
+.git-graph-canvas {
+  position: sticky;
+  top: 0;
+  left: 0;
+  display: block;
+}
+
+.git-graph-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--v2-background-bg-base, transparent);
+  transition: height 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  contain: layout style;
+}
+
+.git-graph-panel[data-sizing] {
+  transition: none;
+}
+
+.git-graph-resize-handle {
+  position: relative;
+  height: 4px;
+  flex-shrink: 0;
+}
+
+.git-graph-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  height: 32px;
+  flex-shrink: 0;
+  user-select: none;
+  cursor: pointer;
+}
+
+.git-graph-header:hover {
+  background: var(--v2-background-bg-layer-01, transparent);
+}
+
+.git-graph-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.git-graph-branch-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 6px;
+  flex-shrink: 0;
+}
+
+.git-graph-branch-trigger {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  background: var(--v2-background-bg-layer-02, transparent);
+  color: var(--v2-text-text-base, inherit);
+  border: none;
+  outline: none;
+  border-radius: 4px;
+  padding: 3px 6px;
+  cursor: pointer;
+  max-width: 180px;
+  transition: background 0.15s ease;
+}
+
+.git-graph-branch-trigger:hover:not(:disabled) {
+  background: var(--v2-background-bg-layer-03, rgba(255, 255, 255, 0.08));
+}
+
+.git-graph-branch-trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.git-graph-branch-icon {
+  color: var(--v2-text-text-muted, #9ca3af);
+  flex-shrink: 0;
+}
+
+.git-graph-branch-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.git-graph-branch-chevron {
+  color: var(--v2-text-text-muted, #9ca3af);
+  flex-shrink: 0;
+}
+
+.git-graph-branch-list {
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  min-width: 140px;
+  max-width: 240px;
+  max-height: 280px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.git-graph-branch-list::-webkit-scrollbar {
+  display: none;
+}
+
+.git-graph-branch-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  background: transparent;
+  color: var(--v2-text-text-base, inherit);
+  border: none;
+  outline: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s ease;
+}
+
+.git-graph-branch-item:hover {
+  background: var(--v2-background-bg-layer-02, rgba(255, 255, 255, 0.06));
+}
+
+.git-graph-branch-item[data-current] {
+  color: var(--v2-text-text-accent, #60a5fa);
+}
+
+.git-graph-branch-item[data-current] .git-graph-branch-item-name {
+  font-weight: 600;
+}
+
+.git-graph-branch-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.git-graph-commit-detail {
+  flex-shrink: 0;
+  max-height: 72px;
+  overflow-y: auto;
+  border-top: 1px solid var(--v2-background-bg-layer-01, transparent);
+  padding: 3px 8px 4px;
+  scrollbar-width: none;
+}
+
+.git-graph-commit-detail::-webkit-scrollbar {
+  display: none;
+}
+
+.git-graph-commit-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  line-height: 14px;
+  color: var(--v2-text-text-muted, #9ca3af);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.git-graph-commit-hash {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  color: var(--v2-text-text-weak, #b3b3b3);
+}
+
+.git-graph-commit-author {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.git-graph-commit-close {
+  margin-left: auto;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--v2-text-text-muted, #9ca3af);
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 0;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+
+.git-graph-commit-close:hover {
+  background: var(--v2-background-bg-layer-02, rgba(255, 255, 255, 0.08));
+  color: var(--v2-text-text-base, #e5e7eb);
+}
+
+.git-graph-commit-subject {
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--v2-text-text-base, #e5e7eb);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 1px;
+}
+
+.git-graph-commit-detail-empty {
+  padding: 2px 0;
+  font-size: 10px;
+  line-height: 14px;
+  color: var(--v2-text-text-weak, #9ca3af);
+}
+
+.git-graph-file-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 0;
+  font-size: 10px;
+  line-height: 14px;
+}
+
+.git-graph-file-additions {
+  color: #4ade80;
+  font-variant-numeric: tabular-nums;
+  min-width: 24px;
+  text-align: right;
+}
+
+.git-graph-file-deletions {
+  color: #f87171;
+  font-variant-numeric: tabular-nums;
+  min-width: 24px;
+  text-align: right;
+}
+
+.git-graph-file-name {
+  color: var(--v2-text-text, #e5e7eb);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.git-graph-file-status {
+  font-size: 9px;
+  padding: 0 3px;
+  border-radius: 2px;
+  font-weight: 600;
+  min-width: 12px;
+  text-align: center;
+  line-height: 12px;
+}
+
+.git-graph-file-status[data-status="added"] {
+  background: rgba(74, 222, 128, 0.15);
+  color: #4ade80;
+}
+
+.git-graph-file-status[data-status="deleted"] {
+  background: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+}
+
+.git-graph-file-status[data-status="modified"] {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+}
+
+.git-graph-loading {
+  padding: 12px;
+  font-size: 12px;
+  color: var(--v2-text-text-weak, #9ca3af);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .git-graph-panel {
+    transition: none;
+  }
+}

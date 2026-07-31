@@ -132,6 +132,37 @@ All instruction files are combined with your `AGENTS.md` files.
 
 ---
 
+## Profile Rules (V2)
+
+On the V2 server, the `profile.rules` block in `opencode.json` adds a personal rule layer on top of `AGENTS.md` and the `instructions` field. Rules are rendered as peers to `AGENTS.md` so personal style sits right next to system instructions.
+
+```jsonc title="opencode.jsonc"
+{
+  "profile": {
+    "rules": {
+      "instructions": [".opencode/rules/my-style.md", "docs/coding-standards.md"],
+      "inline": "Answer concisely: conclusion first, then details. Cite file:line for code changes.",
+      "selection": {
+        "enable": ["my-style", "coding-standards"],
+        "disable": ["deprecated-*"]
+      }
+    }
+  }
+}
+```
+
+- `instructions` — additional `.md` files (project-relative or absolute paths). Only markdown files are loaded; other extensions are skipped with a warning.
+- `inline` — raw rule text injected directly into the system prompt. Useful for short, session-specific preferences that don't warrant a separate file.
+- `selection.enable` / `selection.disable` — filter loaded instruction files by their basename (without extension). Wildcards `*` and `?` are supported. `disable` wins over `enable`.
+
+An absent `profile.rules` contributes nothing — the system prompt is byte-for-byte identical to the pre-Profile baseline. Any load failure (missing file, decode error) degrades gracefully to an empty contribution so a misconfigured profile never blocks session startup.
+
+:::note
+Profile rules require the OpenCode V2 server. On a V1 sidecar the `profile.rules` block is parsed but ignored at runtime; a warning is logged if non-empty rules are detected.
+:::
+
+---
+
 ## Referencing External Files
 
 While opencode doesn't automatically parse file references in `AGENTS.md`, you can achieve similar functionality in two ways:

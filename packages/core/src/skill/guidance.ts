@@ -2,8 +2,10 @@ export * as SkillGuidance from "./guidance"
 
 import { makeLocationNode } from "../effect/app-node"
 import { Context, Effect, Layer, Schema } from "effect"
+import { Profile } from "@opencode-ai/schema/profile"
 import { AgentV2 } from "../agent"
 import { PermissionV2 } from "../permission"
+import { ProfileSelection } from "../profile/selection"
 import { SkillV2 } from "../skill"
 import { SystemContext } from "../system-context/index"
 
@@ -32,7 +34,10 @@ const render = (skills: ReadonlyArray<Summary>) =>
   ].join("\n")
 
 export interface Interface {
-  readonly load: (agent: AgentV2.Selection) => Effect.Effect<SystemContext.SystemContext>
+  readonly load: (
+    agent: AgentV2.Selection,
+    profile?: Profile.Snapshot,
+  ) => Effect.Effect<SystemContext.SystemContext>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/v2/SkillGuidance") {}
@@ -43,7 +48,7 @@ const layer = Layer.effect(
     const skills = yield* SkillV2.Service
 
     return Service.of({
-      load: Effect.fn("SkillGuidance.load")(function* (selection) {
+      load: Effect.fn("SkillGuidance.load")(function* (selection, profile?: Profile.Snapshot) {
         const agent = selection.info
         if (!agent) return SystemContext.empty
         const permitted = SkillV2.available(yield* skills.list(), agent)
@@ -54,6 +59,7 @@ const layer = Layer.effect(
             skill.description === undefined ? [] : [{ name: skill.name, description: skill.description }],
           )
           .toSorted((a, b) => a.name.localeCompare(b.name))
+          .filter((skill) => ProfileSelection.allows(skill.name, profile?.skills?.selection))
         return SystemContext.make({
           key: SystemContext.Key.make("core/skill-guidance"),
           codec: Schema.toCodecJson(Schema.Array(Summary)),

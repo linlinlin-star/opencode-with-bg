@@ -21,7 +21,10 @@ import { escapeHtml } from "@/util/html"
 const CLAUDE_EXTERNAL_DIR = ".claude"
 const AGENTS_EXTERNAL_DIR = ".agents"
 const EXTERNAL_SKILL_PATTERN = "skills/**/SKILL.md"
-const OPENCODE_SKILL_PATTERN = "{skill,skills}/**/SKILL.md"
+// Match both nested SKILL.md files and top-level *.md skill files under the
+// opencode skill/skills directory, so flat skill files (e.g. my-review.md)
+// are discoverable the same way V2's `{*.md,**/SKILL.md}` glob discovers them.
+const OPENCODE_SKILL_PATTERN = "{skill,skills}/{**/SKILL.md,*.md}"
 const SKILL_PATTERN = "**/SKILL.md"
 
 // Built-in skill that ships with opencode. The model's intuition for what an

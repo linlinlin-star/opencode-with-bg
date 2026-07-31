@@ -4,6 +4,7 @@ import { Schema } from "effect"
 import { NonNegativeInt, PositiveInt, type DeepMutable } from "../../schema"
 import { ConfigExperimental } from "../../config/experimental"
 import { ConfigReference } from "../../config/reference"
+import { Profile } from "@opencode-ai/schema/profile"
 import { ConfigAgentV1 } from "./agent"
 import { ConfigAttachmentV1 } from "./attachment"
 import { ConfigCommandV1 } from "./command"
@@ -187,6 +188,12 @@ export const Info = Schema.Struct({
       }),
     }),
   ),
+  // V2-only field. V1 accepts it so the config file still loads when the user
+  // opts into the Profile feature, but V1 has no profile machinery and ignores
+  // the value at runtime. The Profile UI gates itself behind the V2 protocol.
+  profile: Schema.optional(Profile.Info).annotate({
+    description: "Selectable skills & rules profile (requires OpenCode V2 server)",
+  }),
 }).annotate({ identifier: "Config" })
 
 export type Info = DeepMutable<Schema.Schema.Type<typeof Info>>

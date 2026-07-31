@@ -12,6 +12,8 @@ import {
   UnknownError,
 } from "@opencode-ai/protocol/errors"
 import { AbsolutePath } from "@opencode-ai/core/schema"
+import { Database } from "@opencode-ai/core/database/database"
+import { SessionProfile } from "@opencode-ai/core/session/profile"
 
 const DefaultSessionsLimit = 50
 const DefaultSessionHistoryLimit = 50
@@ -19,6 +21,7 @@ const DefaultSessionHistoryLimit = 50
 export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handlers) =>
   Effect.gen(function* () {
     const session = yield* SessionV2.Service
+    const database = yield* Database.Service
 
     return handlers
       .handle(
@@ -133,6 +136,60 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
               ),
             ),
           )
+          return HttpApiSchema.NoContent.make()
+        }),
+      )
+      .handle(
+        "session.profile",
+        Effect.fn(function* (ctx) {
+          yield* session.get(ctx.params.sessionID).pipe(
+            Effect.catchTag("Session.NotFoundError", (error) =>
+              Effect.fail(
+                new SessionNotFoundError({
+                  sessionID: error.sessionID,
+                  message: `Session not found: ${error.sessionID}`,
+                }),
+              ),
+            ),
+          )
+          return {
+            data: {
+              session: yield* SessionProfile.get(database.db, ctx.params.sessionID),
+            },
+          }
+        }),
+      )
+      .handle(
+        "session.profile.set",
+        Effect.fn(function* (ctx) {
+          yield* session.get(ctx.params.sessionID).pipe(
+            Effect.catchTag("Session.NotFoundError", (error) =>
+              Effect.fail(
+                new SessionNotFoundError({
+                  sessionID: error.sessionID,
+                  message: `Session not found: ${error.sessionID}`,
+                }),
+              ),
+            ),
+          )
+          yield* SessionProfile.set(database.db, ctx.params.sessionID, ctx.payload.profile)
+          return HttpApiSchema.NoContent.make()
+        }),
+      )
+      .handle(
+        "session.profile.reset",
+        Effect.fn(function* (ctx) {
+          yield* session.get(ctx.params.sessionID).pipe(
+            Effect.catchTag("Session.NotFoundError", (error) =>
+              Effect.fail(
+                new SessionNotFoundError({
+                  sessionID: error.sessionID,
+                  message: `Session not found: ${error.sessionID}`,
+                }),
+              ),
+            ),
+          )
+          yield* SessionProfile.clear(database.db, ctx.params.sessionID)
           return HttpApiSchema.NoContent.make()
         }),
       )

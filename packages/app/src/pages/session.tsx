@@ -88,6 +88,7 @@ import { SessionReviewEmptyNoGitV2 } from "@opencode-ai/session-ui/v2/session-re
 import { SessionReviewV2SidebarToggle } from "@opencode-ai/session-ui/v2/session-review-v2"
 import { ReviewPanelV2 } from "@/pages/session/v2/review-panel-v2"
 import { createReviewPanelV2State } from "@/pages/session/v2/review-panel-v2-state"
+import { GitGraphPanel } from "@/pages/session/v2/git-graph-panel"
 import { reviewDiffDirectory, reviewDiffNeedsLoad, reviewRootDirectory } from "@/pages/session/v2/review-diff-kinds"
 import { TerminalPanel } from "@/pages/session/terminal-panel"
 import { TerminalPanelV2 } from "@/pages/session/terminal-panel-v2"
@@ -1294,16 +1295,59 @@ export default function Page() {
 
   const reviewV2State = createReviewPanelV2State()
 
+  // Build the Git graph footer once as a stable element. A getter that returns
+  // fresh `<Show>` JSX on every access created a new reactive scope each time
+  // `sync()` updated during project load; the previous scope was disposed while
+  // GitGraphPanel's tanstack-query fetches were still in flight, and resolving
+  // them then touched disposed signals ("stale value from <Show>"). The `when`
+  // condition and `directory` prop stay reactive through the single element.
+  const gitGraphFooter = (
+    <Show when={sync().project?.vcs === "git"}>
+      <GitGraphPanel directory={sdk().directory} />
+    </Show>
+  )
+
+  // Same pattern as gitGraphFooter: getters returning fresh JSX on every
+  // access re-created reactive scopes on each sync()/reviewReady()/
+  // reviewMode() update, disposing the previous scope mid-flight. Stable
+  // elements keep when conditions and props reactive without recreating
+  // the element tree.
+  const reviewTitleV2 = (
+    <Show when={canReview()}>
+      <SelectV2
+        appearance="inline"
+        options={changesOptions()}
+        current={reviewMode()}
+        label={changesLabel}
+        placement="bottom-start"
+        gutter={6}
+        onSelect={(option) => option && view().review.setMode(option)}
+      />
+    </Show>
+  )
+
+  const reviewEmptyV2Element = (
+    <Show
+      when={(reviewMode() === "git" || reviewMode() === "branch") && !reviewReady()}
+      fallback={
+        <Show
+          when={reviewMode() === "turn" && nogit()}
+          fallback={<SessionReviewEmptyChangesV2 />}
+        >
+          <SessionReviewEmptyNoGitV2 pending={gitMutation.isPending} onInitGit={initGit} />
+        </Show>
+      }
+    >
+      <div class="px-6 py-4 text-text-weak">{language.t("session.review.loadingChanges")}</div>
+    </Show>
+  )
+
   // Getters defer reactive reads to the consuming scope. Eager reads here ran inside
   // the side panel's Show children and remounted the whole review panel on unrelated
   // updates such as session switches.
   const reviewPanelV2Props = () => ({
-    get title() {
-      return changesTitleV2()
-    },
-    get empty() {
-      return reviewEmptyV2()
-    },
+    title: reviewTitleV2,
+    empty: reviewEmptyV2Element,
     diffs: reviewDiffs,
     diffsReady: reviewReady,
     get diffVersion() {
@@ -1341,6 +1385,7 @@ export default function Page() {
       }
       comments.setFocus(focus)
     },
+    footer: gitGraphFooter,
   })
 
   // Latch: defer only the first diff render off the mount critical path. This Page

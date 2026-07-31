@@ -21,6 +21,7 @@ import { Model } from "@opencode-ai/schema/model"
 import { Location } from "@opencode-ai/schema/location"
 import { Revert } from "@opencode-ai/schema/revert"
 import { SessionEvent } from "@opencode-ai/schema/session-event"
+import { Profile } from "@opencode-ai/schema/profile"
 
 const SessionsQueryFields = {
   workspace: Workspace.ID.pipe(Schema.optional),
@@ -198,6 +199,58 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S>(sessionLo
             identifier: "v2.session.switchModel",
             summary: "Switch session model",
             description: "Switch the model used by subsequent provider turns.",
+          }),
+        ),
+    )
+    .add(
+      HttpApiEndpoint.get("session.profile", "/api/session/:sessionID/profile", {
+        params: { sessionID: Session.ID },
+        success: Schema.Struct({
+          data: Schema.Struct({
+            session: Profile.Snapshot.pipe(Schema.optional),
+          }),
+        }),
+        error: [SessionNotFoundError, UnknownError],
+      })
+        .middleware(sessionLocationMiddleware)
+        .annotateMerge(
+          OpenApi.annotations({
+            identifier: "v2.session.profile",
+            summary: "Get session profile",
+            description:
+              "Return the stored session-level profile snapshot. The config-level profile is merged by the runner via field-level overlay.",
+          }),
+        ),
+    )
+    .add(
+      HttpApiEndpoint.post("session.profile.set", "/api/session/:sessionID/profile/set", {
+        params: { sessionID: Session.ID },
+        payload: Schema.Struct({ profile: Profile.Snapshot }),
+        success: HttpApiSchema.NoContent,
+        error: [SessionNotFoundError, UnknownError],
+      })
+        .middleware(sessionLocationMiddleware)
+        .annotateMerge(
+          OpenApi.annotations({
+            identifier: "v2.session.profile.set",
+            summary: "Set session profile",
+            description:
+              "Upsert the session-level profile. Fields set here override config; others inherit.",
+          }),
+        ),
+    )
+    .add(
+      HttpApiEndpoint.post("session.profile.reset", "/api/session/:sessionID/profile/reset", {
+        params: { sessionID: Session.ID },
+        success: HttpApiSchema.NoContent,
+        error: [SessionNotFoundError, UnknownError],
+      })
+        .middleware(sessionLocationMiddleware)
+        .annotateMerge(
+          OpenApi.annotations({
+            identifier: "v2.session.profile.reset",
+            summary: "Reset session profile",
+            description: "Remove the session-level profile so it fully inherits from config.",
           }),
         ),
     )

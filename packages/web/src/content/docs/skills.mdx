@@ -10,11 +10,18 @@ Skills are loaded on-demand via the native `skill` tool—agents see available s
 
 ## Place files
 
-Create one folder per skill name and put a `SKILL.md` inside it.
-OpenCode searches these locations:
+OpenCode supports two file layouts for skills:
 
-- Project config: `.opencode/skills/<name>/SKILL.md`
-- Global config: `~/.config/opencode/skills/<name>/SKILL.md`
+- **Nested**: one folder per skill with a `SKILL.md` inside — `.opencode/skills/<name>/SKILL.md`
+- **Flat**: a single `.md` file whose name becomes the skill name — `.opencode/skills/<name>.md`
+
+Both layouts are discoverable under `.opencode/skill/` and `.opencode/skills/`.
+Claude- and agent-compatible directories (`.claude/`, `.agents/`) only support the nested `SKILL.md` layout.
+
+Full list of search locations:
+
+- Project config (nested or flat): `.opencode/skills/<name>/SKILL.md` or `.opencode/skills/<name>.md`
+- Global config (nested or flat): `~/.config/opencode/skills/<name>/SKILL.md` or `~/.config/opencode/skills/<name>.md`
 - Project Claude-compatible: `.claude/skills/<name>/SKILL.md`
 - Global Claude-compatible: `~/.claude/skills/<name>/SKILL.md`
 - Project agent-compatible: `.agents/skills/<name>/SKILL.md`
@@ -25,22 +32,19 @@ OpenCode searches these locations:
 ## Understand discovery
 
 For project-local paths, OpenCode walks up from your current working directory until it reaches the git worktree.
-It loads any matching `skills/*/SKILL.md` in `.opencode/` and any matching `.claude/skills/*/SKILL.md` or `.agents/skills/*/SKILL.md` along the way.
+It loads any matching `skills/*/SKILL.md` (and `skills/*.md` under `.opencode/`) along the way, plus any matching `.claude/skills/*/SKILL.md` or `.agents/skills/*/SKILL.md`.
 
-Global definitions are also loaded from `~/.config/opencode/skills/*/SKILL.md`, `~/.claude/skills/*/SKILL.md`, and `~/.agents/skills/*/SKILL.md`.
+Global definitions are also loaded from `~/.config/opencode/skills/`, `~/.claude/skills/`, and `~/.agents/skills/` using the same patterns.
 
 ---
 
 ## Write frontmatter
 
-Each `SKILL.md` must start with YAML frontmatter.
+Each skill file must start with YAML frontmatter.
 Only these fields are recognized:
 
-- `name` (required)
-- `description` (required)
-- `license` (optional)
-- `compatibility` (optional)
-- `metadata` (optional, string-to-string map)
+- `name` (required for flat `.md` files; for nested `SKILL.md` it falls back to the parent directory name when omitted)
+- `description` (optional, but strongly recommended so the agent can pick the right skill)
 
 Unknown frontmatter fields are ignored.
 
@@ -48,13 +52,12 @@ Unknown frontmatter fields are ignored.
 
 ## Validate names
 
-`name` must:
+Skill `name` should follow these conventions so it stays portable and discoverable:
 
 - Be 1–64 characters
 - Be lowercase alphanumeric with single hyphen separators
 - Not start or end with `-`
 - Not contain consecutive `--`
-- Match the directory name that contains `SKILL.md`
 
 Equivalent regex:
 
@@ -62,12 +65,14 @@ Equivalent regex:
 ^[a-z0-9]+(-[a-z0-9]+)*$
 ```
 
+For nested `SKILL.md` files, the `name` should match the parent directory name. For flat `.md` files, the `name` defaults to the filename without the `.md` extension when not set in frontmatter.
+
 ---
 
 ## Follow length rules
 
-`description` must be 1-1024 characters.
-Keep it specific enough for the agent to choose correctly.
+Keep `description` under 1024 characters.
+Make it specific enough for the agent to choose correctly — a vague description like "helps with code" leads to wrong skill selection.
 
 ---
 
@@ -79,11 +84,6 @@ Create `.opencode/skills/git-release/SKILL.md` like this:
 ---
 name: git-release
 description: Create consistent releases and changelogs
-license: MIT
-compatibility: opencode
-metadata:
-  audience: maintainers
-  workflow: github
 ---
 
 ## What I do
@@ -97,6 +97,8 @@ metadata:
 Use this when you are preparing a tagged release.
 Ask clarifying questions if the target versioning scheme is unclear.
 ```
+
+Or use the flat layout at `.opencode/skills/git-release.md` with identical frontmatter.
 
 ---
 
@@ -212,11 +214,45 @@ When disabled, the `<available_skills>` section is omitted entirely.
 
 ---
 
+## Configure profile-based sources (V2)
+
+On the V2 server, the `profile` block in `opencode.json` adds per-scope skill sources and rule bundles on top of the discovery locations above. This is useful for attaching a shared skill directory or inline rules to a specific session without changing global config.
+
+```jsonc title="opencode.jsonc"
+{
+  "profile": {
+    "skills": {
+      "sources": [
+        { "type": "directory", "path": "/abs/path/to/skills" },
+        { "type": "url", "url": "https://example.test/skills/" }
+      ],
+      "selection": {
+        "enable": ["review", "deploy-*"],
+        "disable": ["experimental-*"]
+      }
+    }
+  }
+}
+```
+
+- `sources` — additional skill directories or URLs concatenated with the standard discovery sources.
+- `selection.enable` — when non-empty, only skills whose `name` matches an entry are visible (wildcards `*` and `?` supported).
+- `selection.disable` — matched skills are hidden. `disable` wins over `enable` when both match.
+
+An empty or absent `profile` is the identity baseline: it adds nothing and removes nothing.
+
+:::note
+Profile-based sources require the OpenCode V2 server. On a V1 sidecar the `profile` block is parsed but ignored at runtime; check the server logs for a warning if you see it not taking effect.
+:::
+
+---
+
 ## Troubleshoot loading
 
 If a skill does not show up:
 
-1. Verify `SKILL.md` is spelled in all caps
-2. Check that frontmatter includes `name` and `description`
+1. For nested skills, verify `SKILL.md` is spelled in all caps; for flat skills, confirm the file has a `.md` extension
+2. Check that frontmatter includes a valid `name` (or that the file/directory name supplies one)
 3. Ensure skill names are unique across all locations
 4. Check permissions—skills with `deny` are hidden from agents
+5. On V1, confirm the `profile` block is not being relied upon—it is ignored outside V2

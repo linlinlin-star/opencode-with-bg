@@ -33,6 +33,14 @@ export type SessionNotFoundError = {
 export const isSessionNotFoundError = (value: unknown): value is SessionNotFoundError =>
   typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "SessionNotFoundError"
 
+export type UnknownError = {
+  readonly _tag: "UnknownError"
+  readonly message: string
+  readonly ref?: string | undefined
+}
+export const isUnknownError = (value: unknown): value is UnknownError =>
+  typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "UnknownError"
+
 export type ConflictError = {
   readonly _tag: "ConflictError"
   readonly message: string
@@ -57,14 +65,6 @@ export type MessageNotFoundError = {
 }
 export const isMessageNotFoundError = (value: unknown): value is MessageNotFoundError =>
   typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "MessageNotFoundError"
-
-export type UnknownError = {
-  readonly _tag: "UnknownError"
-  readonly message: string
-  readonly ref?: string | undefined
-}
-export const isUnknownError = (value: unknown): value is UnknownError =>
-  typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "UnknownError"
 
 export type ProviderNotFoundError = {
   readonly _tag: "ProviderNotFoundError"
@@ -101,7 +101,7 @@ export type ProjectCopyError = {
 export const isProjectCopyError = (value: unknown): value is ProjectCopyError =>
   typeof value === "object" && value !== null && "name" in value && value["name"] === "ProjectCopyError"
 
-export type HealthGetOutput = { readonly healthy: true }
+export type HealthGetOutput = { readonly healthy: true; readonly pid: number }
 
 export type LocationGetInput = {
   readonly location?: {
@@ -380,6 +380,71 @@ export type SessionsSwitchModelInput = {
 }
 
 export type SessionsSwitchModelOutput = void
+
+export type SessionsProfileInput = { readonly sessionID: { readonly sessionID: string }["sessionID"] }
+
+export type SessionsProfileOutput = {
+  readonly data: {
+    readonly session?: {
+      readonly skills?: {
+        readonly sources?: ReadonlyArray<
+          | { readonly type: "directory"; readonly path: string }
+          | { readonly type: "url"; readonly url: string }
+          | {
+              readonly type: "embedded"
+              readonly skill: {
+                readonly name: string
+                readonly description?: string
+                readonly location: string
+                readonly content: string
+              }
+            }
+        >
+        readonly selection?: { readonly enable?: ReadonlyArray<string>; readonly disable?: ReadonlyArray<string> }
+      }
+      readonly rules?: {
+        readonly instructions?: ReadonlyArray<string>
+        readonly inline?: string
+        readonly selection?: { readonly enable?: ReadonlyArray<string>; readonly disable?: ReadonlyArray<string> }
+      }
+    } | null
+  }
+}["data"]
+
+export type SessionsSetInput = {
+  readonly sessionID: { readonly sessionID: string }["sessionID"]
+  readonly profile: {
+    readonly profile: {
+      readonly skills?: {
+        readonly sources?: ReadonlyArray<
+          | { readonly type: "directory"; readonly path: string }
+          | { readonly type: "url"; readonly url: string }
+          | {
+              readonly type: "embedded"
+              readonly skill: {
+                readonly name: string
+                readonly description?: string
+                readonly location: string
+                readonly content: string
+              }
+            }
+        >
+        readonly selection?: { readonly enable?: ReadonlyArray<string>; readonly disable?: ReadonlyArray<string> }
+      }
+      readonly rules?: {
+        readonly instructions?: ReadonlyArray<string>
+        readonly inline?: string
+        readonly selection?: { readonly enable?: ReadonlyArray<string>; readonly disable?: ReadonlyArray<string> }
+      }
+    }
+  }["profile"]
+}
+
+export type SessionsSetOutput = void
+
+export type SessionsResetInput = { readonly sessionID: { readonly sessionID: string }["sessionID"] }
+
+export type SessionsResetOutput = void
 
 export type SessionsPromptInput = {
   readonly sessionID: { readonly sessionID: string }["sessionID"]
@@ -2532,7 +2597,6 @@ export type SkillsListOutput = {
   readonly data: ReadonlyArray<{
     readonly name: string
     readonly description?: string
-    readonly slash?: boolean
     readonly location: string
     readonly content: string
   }>

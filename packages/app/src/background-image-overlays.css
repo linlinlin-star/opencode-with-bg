@@ -1,0 +1,126 @@
+/*
+ * When a background image is enabled (body[data-bg-image="true"]), floating UI
+ * elements that sit ABOVE content use the opaque color variants (--*-opaque)
+ * stored by BackgroundImageLayer, plus backdrop-filter for a frosted-glass
+ * effect. Content panels (chat area, side panels, terminal) remain translucent
+ * so the background image shows through consistently.
+ *
+ * Rule of thumb:
+ *   - Floating/overlay elements → opaque + frosted glass
+ *   - Inline content panels → stay translucent (no override needed)
+ *   - Inline content children needing readability → opaque only (code blocks, mermaid)
+ */
+
+/* ─── Floating / overlay elements ─── */
+
+/* Dialogs — var(--v2-background-bg-layer-01) / var(--v2-background-bg-base) */
+body[data-bg-image="true"] [data-component="dialog-v2"] [data-slot="dialog-container"],
+body[data-bg-image="true"] [data-component="dialog-v2"]:has(.command-palette-v2) [data-slot="dialog-container"] {
+  background: var(--v2-background-bg-base-opaque, var(--v2-background-bg-base));
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+}
+
+/* Menus and context menus — var(--v2-background-bg-layer-01) */
+body[data-bg-image="true"] [data-component="menu-v2-content"] {
+  background: var(--v2-background-bg-layer-01-opaque, var(--v2-background-bg-layer-01));
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+}
+
+/* Tooltips — var(--v2-background-bg-layer-01) */
+body[data-bg-image="true"] [data-component="tooltip-v2"] {
+  background: var(--v2-background-bg-layer-01-opaque, var(--v2-background-bg-layer-01));
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+}
+
+/* Select dropdowns — var(--v2-background-bg-layer-01) */
+body[data-bg-image="true"] [data-slot="select-v2-content"] {
+  background: var(--v2-background-bg-layer-01-opaque, var(--v2-background-bg-layer-01));
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+}
+
+/* Toasts — var(--v2-background-bg-layer-01) */
+body[data-bg-image="true"] [data-component="toast-v2"] {
+  background: var(--v2-background-bg-layer-01-opaque, var(--v2-background-bg-layer-01));
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+}
+
+/* Line comments — var(--v2-background-bg-layer-01) */
+body[data-bg-image="true"] [data-component="line-comment-v2"] [data-slot="line-comment-v2-shell"] {
+  background: var(--v2-background-bg-layer-01-opaque, var(--v2-background-bg-layer-01));
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+}
+
+/* Slash popover and similar floating prompt popovers using bg-v2-background-bg-base.
+   Elevated to layer-02 opaque so the panel visually lifts off the translucent base
+   (which shares the same rgb) and option text stays crisp; saturate is dropped since
+   the opaque background leaves nothing for the backdrop-filter to blend. */
+body[data-bg-image="true"] [data-slot="slash-popover"],
+body[data-bg-image="true"] [data-slot="prompt-popover"] {
+  background: var(--v2-background-bg-layer-02-opaque, var(--v2-background-bg-base-opaque, var(--v2-background-bg-base))) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* Home page session search dropdown panel — floats above session list */
+body[data-bg-image="true"] [data-component="home-session-search-panel"] {
+  background: var(--v2-background-bg-base-opaque, var(--v2-background-bg-base));
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+}
+
+/* ─── Inline content children needing opaque backgrounds for readability ─── */
+/*
+ * These sit inside translucent layout panels. They use opaque backgrounds
+ * (without frosted glass) to create proper visual hierarchy and ensure
+ * text/code legibility while the parent panel stays translucent.
+ */
+
+/* Markdown code blocks — var(--color-background-stronger) */
+body[data-bg-image="true"] [data-component="markdown"] .shiki {
+  background: var(--color-background-stronger-opaque, var(--color-background-stronger));
+}
+
+/* Settings dialog tab header gradient — uses var(--v2-background-bg-base) */
+body[data-bg-image="true"] .settings-v2-tab-header {
+  background: linear-gradient(
+    to bottom,
+    var(--v2-background-bg-base-opaque, var(--v2-background-bg-base)) calc(100% - 24px),
+    transparent
+  );
+}
+
+/* Mermaid diagram containers — use opaque background for contrast */
+body[data-bg-image="true"] [data-component="markdown"] .mermaid-diagram {
+  background: var(--v2-background-bg-layer-02-opaque, var(--v2-background-bg-layer-02));
+}
+
+/* ─── Sticky elements — translucent + frosted glass ─── */
+/*
+ * These stay translucent so the background image shows through, but use
+ * backdrop-filter to blur scrolling content that passes behind them.
+ * This gives a frosted-glass effect without blocking the background image.
+ */
+
+/* Session review tabs bar — sticky header in side panel */
+body[data-bg-image="true"] .session-review-v2-tabs-bar {
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+}
+
+/* Terminal panel tabs container — same sticky-tab pattern */
+body[data-bg-image="true"] #terminal-panel [data-component="tabs"] {
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+}
+
+/* Home page sticky search header */
+body[data-bg-image="true"] .sticky.bg-v2-background-bg-base {
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+}

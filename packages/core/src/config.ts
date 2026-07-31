@@ -5,6 +5,7 @@ import path from "path"
 import { type ParseError, parse } from "jsonc-parser"
 import { Context, Effect, Layer, Option, Schema } from "effect"
 import { Permission } from "@opencode-ai/schema/permission"
+import { Profile } from "@opencode-ai/schema/profile"
 import { FSUtil } from "./fs-util"
 import { Global } from "./global"
 import { Location } from "./location"
@@ -98,6 +99,9 @@ export class Info extends Schema.Class<Info>("Config.Info")({
   }),
   references: ConfigReference.Info.pipe(Schema.optional).annotate({
     description: "Named local directories or Git repositories available as external context",
+  }),
+  profile: Profile.Info.pipe(Schema.optional).annotate({
+    description: "Selectable skills & rules profile applied at project/global scope",
   }),
   plugins: ConfigPlugin.Plugins.pipe(Schema.optional).annotate({
     description: "Ordered external plugin packages to load",

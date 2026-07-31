@@ -583,6 +583,26 @@ const layer = Layer.effect(
           result.compaction = { ...result.compaction, prune: false }
         }
 
+        // V1 server has no Profile machinery: profile.skills.sources and
+        // profile.rules.* are silently ignored at runtime. Surface a warning
+        // so users notice their config isn't applied instead of failing quietly.
+        const profile = result.profile
+        if (
+          profile &&
+          (profile.skills?.sources?.length ||
+            profile.rules?.instructions?.length ||
+            profile.rules?.inline)
+        ) {
+          yield* Effect.logWarning(
+            "profile config is set but the V1 server ignores it at runtime; set OPENCODE_SIDECAR_V2=1 with opencode-cli.exe to enable skills & rules profiles",
+            {
+              hasSkillsSources: !!profile.skills?.sources?.length,
+              hasRulesInstructions: !!profile.rules?.instructions?.length,
+              hasRulesInline: !!profile.rules?.inline,
+            },
+          )
+        }
+
         return {
           config: result,
           directories,
