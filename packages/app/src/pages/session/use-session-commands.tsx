@@ -88,7 +88,6 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
   })
   const activeFileTab = tabState.activeFileTab
   const closableTab = tabState.closableTab
-  const shown = settings.visibility.fileTree
 
   const messages = () => {
     const id = params.id
@@ -514,16 +513,12 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
       keybind: "mod+shift+r",
       onSelect: () => view().reviewPanel.toggle(),
     }),
-    ...(shown()
-      ? [
-          viewCommand({
-            id: "fileTree.toggle",
-            title: language.t("command.fileTree.toggle"),
-            keybind: "mod+\\",
-            onSelect: () => layout.fileTree.toggle(),
-          }),
-        ]
-      : []),
+    viewCommand({
+      id: "fileTree.toggle",
+      title: language.t("command.fileTree.toggle"),
+      keybind: "mod+\\",
+      onSelect: () => layout.fileTree.toggle(),
+    }),
     viewCommand({
       id: "input.focus",
       title: language.t("command.input.focus"),

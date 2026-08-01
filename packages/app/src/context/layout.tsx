@@ -7,6 +7,7 @@ import { useServerSync } from "./server-sync"
 import { useServerSDK } from "./server-sdk"
 import { RECENTLY_CLOSED_DISPLAY_LIMIT, ServerConnection, useServer } from "./server"
 import { usePlatform } from "./platform"
+import { useSettings } from "./settings"
 import { Project } from "@opencode-ai/sdk/v2"
 import { normalizeProjectInfo } from "./global-sync/utils"
 import { Persist, persisted, removePersisted } from "@/utils/persist"
@@ -165,6 +166,7 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
     const server = useServer()
     const tabs = useTabs()
     const platform = usePlatform()
+    const settings = useSettings()
     const location = useLocation()
     const route = createMemo(() => {
       const value = currentRoute(location.pathname, location.search)
@@ -713,6 +715,7 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
           setStore("fileTree", "tab", tab)
         },
         open() {
+          if (!settings.general.showFileTree()) settings.general.setShowFileTree(true)
           if (!store.fileTree) {
             setStore("fileTree", { opened: true, width: DEFAULT_FILE_TREE_WIDTH, tab: "changes" })
             return
@@ -727,11 +730,17 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
           setStore("fileTree", "opened", false)
         },
         toggle() {
+          const shown = settings.general.showFileTree() && (store.fileTree?.opened ?? true)
+          if (shown) {
+            setStore("fileTree", "opened", false)
+            return
+          }
+          if (!settings.general.showFileTree()) settings.general.setShowFileTree(true)
           if (!store.fileTree) {
             setStore("fileTree", { opened: true, width: DEFAULT_FILE_TREE_WIDTH, tab: "changes" })
             return
           }
-          setStore("fileTree", "opened", (x) => !x)
+          setStore("fileTree", "opened", true)
         },
         resize(width: number) {
           if (!store.fileTree) {

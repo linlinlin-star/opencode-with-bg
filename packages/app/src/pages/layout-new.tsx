@@ -5,10 +5,13 @@ import { TabsInfoPopup } from "@/components/help-button"
 import { Titlebar, type TitlebarUpdate } from "@/components/titlebar"
 import { usePlatform } from "@/context/platform"
 import { setV2Toast, ToastRegion } from "@/utils/toast"
+import { useNewLayoutCommands } from "./use-new-layout-commands"
 
 export default function NewLayout(props: ParentProps) {
   const platform = usePlatform()
   const [state, setState] = createStore({ debugTools: true })
+
+  useNewLayoutCommands()
 
   createEffect(() => setV2Toast(true))
 

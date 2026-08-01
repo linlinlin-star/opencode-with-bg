@@ -412,9 +412,14 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
+  scrollbar-width: none;
   --line-comment-z: 5;
   --line-comment-popover-z: 30;
   --line-comment-open-z: 6;
+}
+
+[data-component="session-review-v2"] [data-slot="session-review-v2-diff-scroll"]::-webkit-scrollbar {
+  display: none;
 }
 
 [data-component="session-review-v2"] .session-review-v2-toolbar-group--segments {
