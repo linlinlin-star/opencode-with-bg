@@ -628,6 +628,14 @@
   border-bottom: 0.5px solid var(--v2-border-border-base);
 }
 
+.settings-v2-range {
+  flex: 1;
+  min-width: 0;
+  height: 4px;
+  cursor: pointer;
+  accent-color: var(--v2-icon-icon-accent, currentColor);
+}
+
 .settings-v2-servers-actions {
   display: flex;
   flex-shrink: 0;

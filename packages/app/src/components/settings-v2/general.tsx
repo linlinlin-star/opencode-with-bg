@@ -205,6 +205,143 @@ const FontSetting: Component<{
   )
 }
 
+const backgroundSizeOptions = [
+  { value: "cover", label: "settings.general.backgroundImage.size.cover" },
+  { value: "contain", label: "settings.general.backgroundImage.size.contain" },
+  { value: "auto", label: "settings.general.backgroundImage.size.auto" },
+] as const
+
+const BackgroundSlider: Component<{
+  title: string
+  description: string
+  value: number
+  min: number
+  max: number
+  step: number
+  format: (value: number) => string
+  onChange: (value: number) => void
+}> = (props) => (
+  <SettingsRowV2 title={props.title} description={props.description}>
+    <div class="flex items-center gap-2 w-full sm:w-[200px]">
+      <input
+        type="range"
+        class="settings-v2-range"
+        min={props.min}
+        max={props.max}
+        step={props.step}
+        value={props.value}
+        onInput={(event) => props.onChange(Number.parseFloat(event.currentTarget.value))}
+      />
+      <span class="text-12-regular text-text-weak tabular-nums w-10 text-right shrink-0">{props.format(props.value)}</span>
+    </div>
+  </SettingsRowV2>
+)
+
+const BackgroundImageSection: Component<{ controller: AppearanceSettingsController }> = (props) => {
+  const language = useLanguage()
+  const bg = props.controller.background
+  const sizeOptions = createMemo(() =>
+    backgroundSizeOptions.map((option) => ({ ...option, label: language.t(option.label) })),
+  )
+  return (
+    <div class="settings-v2-section">
+      <h3 class="settings-v2-section-title">{language.t("settings.general.row.backgroundImage.title")}</h3>
+      <SettingsListV2>
+        <SettingsRowV2
+          title={language.t("settings.general.row.backgroundImage.title")}
+          description={language.t("settings.general.row.backgroundImage.description")}
+        >
+          <div data-action="settings-background-image-enabled">
+            <Switch checked={bg.enabled()} onChange={bg.setEnabled} />
+          </div>
+        </SettingsRowV2>
+
+        <SettingsRowV2
+          title={language.t("settings.general.row.backgroundImage.choose")}
+          description={language.t("settings.general.row.backgroundImage.description")}
+        >
+          <div class="flex items-center gap-2">
+            <Show when={bg.hasImage() && bg.imageURL()}>
+              <img
+                src={bg.imageURL()!}
+                alt=""
+                class="h-8 w-12 rounded border border-border-weak-base object-cover"
+              />
+            </Show>
+            <ButtonV2 size="normal" variant="neutral" onClick={() => void bg.pick()}>
+              {language.t("settings.general.row.backgroundImage.choose")}
+            </ButtonV2>
+            <Show when={bg.hasImage()}>
+              <ButtonV2 size="normal" variant="ghost-muted" onClick={() => void bg.clear()}>
+                {language.t("settings.general.row.backgroundImage.clear")}
+              </ButtonV2>
+            </Show>
+          </div>
+        </SettingsRowV2>
+
+        <BackgroundSlider
+          title={language.t("settings.general.row.backgroundImage.opacity")}
+          description={language.t("settings.general.row.backgroundImage.description")}
+          value={bg.opacity()}
+          min={0}
+          max={1}
+          step={0.05}
+          format={(value) => `${Math.round(value * 100)}%`}
+          onChange={bg.setOpacity}
+        />
+
+        <BackgroundSlider
+          title={language.t("settings.general.row.backgroundImage.blur")}
+          description={language.t("settings.general.row.backgroundImage.description")}
+          value={bg.blur()}
+          min={0}
+          max={20}
+          step={1}
+          format={(value) => `${value}px`}
+          onChange={bg.setBlur}
+        />
+
+        <BackgroundSlider
+          title={language.t("settings.general.row.backgroundImage.dim")}
+          description={language.t("settings.general.row.backgroundImage.description")}
+          value={bg.dim()}
+          min={0}
+          max={1}
+          step={0.05}
+          format={(value) => `${Math.round(value * 100)}%`}
+          onChange={bg.setDim}
+        />
+
+        <SettingsRowV2
+          title={language.t("settings.general.row.backgroundImage.size")}
+          description={language.t("settings.general.row.backgroundImage.description")}
+        >
+          <SelectV2
+            appearance="inline"
+            data-action="settings-background-image-size"
+            options={sizeOptions()}
+            current={sizeOptions().find((option) => option.value === bg.size()) ?? sizeOptions()[0]}
+            placement="bottom-end"
+            gutter={6}
+            value={(option) => option.value}
+            label={(option) => option.label}
+            onSelect={(option) => option && bg.setSize(option.value)}
+          />
+        </SettingsRowV2>
+
+        <SettingsRowV2
+          title={language.t("settings.general.row.backgroundImage.repeat")}
+          description={language.t("settings.general.row.backgroundImage.description")}
+        >
+          <div data-action="settings-background-image-repeat">
+            <Switch checked={bg.repeat()} onChange={bg.setRepeat} />
+          </div>
+        </SettingsRowV2>
+      </SettingsListV2>
+    </div>
+  )
+}
+
 const SoundsSection: Component<{ controller: SoundSettingsController }> = (props) => {
   const language = useLanguage()
   return (
@@ -553,6 +690,10 @@ export const SettingsGeneralV2: Component<{
         <GeneralSection />
 
         <AppearanceSection controller={appearance} />
+
+        <Show when={desktop()}>
+          <BackgroundImageSection controller={appearance} />
+        </Show>
 
         <NotificationsSection />
 

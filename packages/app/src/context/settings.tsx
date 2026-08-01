@@ -19,6 +19,26 @@ export interface SoundSettings {
   errors: string
 }
 
+export type BackgroundImageSize = "cover" | "contain" | "auto"
+
+export interface BackgroundImageConfig {
+  enabled: boolean
+  opacity: number // image layer opacity 0–1
+  blur: number // gaussian blur in px
+  size: BackgroundImageSize
+  repeat: boolean
+  dim: number // content dimming 0–1 (0 = opaque, 1 = fully transparent)
+}
+
+export const defaultBackgroundImage: BackgroundImageConfig = {
+  enabled: false,
+  opacity: 0.6,
+  blur: 0,
+  size: "cover",
+  repeat: false,
+  dim: 0.15,
+}
+
 export interface Settings {
   general: {
     autoSave: boolean
@@ -45,6 +65,7 @@ export interface Settings {
     mono: string
     sans: string
     terminal: string
+    backgroundImage?: BackgroundImageConfig
   }
   keybinds: Record<string, string>
   permissions: {
@@ -355,6 +376,9 @@ export const { use: useSettings, provider: SettingsProvider } = createSimpleCont
       setStore("general", "followup", "steer")
     })
 
+    const updateBackgroundImage = (patch: Partial<BackgroundImageConfig>) =>
+      setStore("appearance", "backgroundImage", (current) => ({ ...defaultBackgroundImage, ...current, ...patch }))
+
     return {
       ready,
       get current() {
@@ -474,6 +498,42 @@ export const { use: useSettings, provider: SettingsProvider } = createSimpleCont
         terminalFont: withFallback(() => store.appearance?.terminal, defaultSettings.appearance.terminal),
         setTerminalFont(value: string) {
           setStore("appearance", "terminal", value.trim() ? value : "")
+        },
+        backgroundImage: {
+          config: withFallback(() => store.appearance?.backgroundImage, undefined),
+          enabled: withFallback(
+            () => store.appearance?.backgroundImage?.enabled,
+            defaultBackgroundImage.enabled,
+          ),
+          setEnabled(value: boolean) {
+            updateBackgroundImage({ enabled: value })
+          },
+          opacity: withFallback(
+            () => store.appearance?.backgroundImage?.opacity,
+            defaultBackgroundImage.opacity,
+          ),
+          setOpacity(value: number) {
+            updateBackgroundImage({ opacity: value })
+          },
+          blur: withFallback(() => store.appearance?.backgroundImage?.blur, defaultBackgroundImage.blur),
+          setBlur(value: number) {
+            updateBackgroundImage({ blur: value })
+          },
+          size: withFallback(() => store.appearance?.backgroundImage?.size, defaultBackgroundImage.size),
+          setSize(value: BackgroundImageSize) {
+            updateBackgroundImage({ size: value })
+          },
+          repeat: withFallback(
+            () => store.appearance?.backgroundImage?.repeat,
+            defaultBackgroundImage.repeat,
+          ),
+          setRepeat(value: boolean) {
+            updateBackgroundImage({ repeat: value })
+          },
+          dim: withFallback(() => store.appearance?.backgroundImage?.dim, defaultBackgroundImage.dim),
+          setDim(value: number) {
+            updateBackgroundImage({ dim: value })
+          },
         },
       },
       keybinds: {

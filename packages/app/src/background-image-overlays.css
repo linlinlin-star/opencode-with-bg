@@ -1,3 +1,28 @@
+/* Background image layer — sits behind #root, above the opaque window底色.
+   The image, opacity, blur, size and repeat are driven by CSS variables written
+   by BackgroundImageLayer (packages/app/src/context/background-image.tsx). */
+body[data-bg-image="true"]::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: var(--app-bg-image, none);
+  background-size: var(--app-bg-size, cover);
+  background-position: center;
+  background-repeat: var(--app-bg-repeat, no-repeat);
+  opacity: var(--app-bg-opacity, 1);
+  filter: blur(var(--app-bg-blur, 0));
+}
+
+/* Lift the app root above the image layer. The attribute selector tolerates any
+   provider wrapper that may sit between body and #root. */
+body[data-bg-image="true"] #root,
+body[data-bg-image="true"] [data-app-root] {
+  position: relative;
+  z-index: 1;
+}
+
 /*
  * When a background image is enabled (body[data-bg-image="true"]), floating UI
  * elements that sit ABOVE content use the opaque color variants (--*-opaque)
@@ -98,6 +123,23 @@ body[data-bg-image="true"] .settings-v2-tab-header {
 /* Mermaid diagram containers — use opaque background for contrast */
 body[data-bg-image="true"] [data-component="markdown"] .mermaid-diagram {
   background: var(--v2-background-bg-layer-02-opaque, var(--v2-background-bg-layer-02));
+}
+
+/* Markdown outline panel — floating sidebar over preview content.
+   Semi-opaque (not fully opaque) with frosted glass so the background image
+   is still subtly visible, but text stays readable. */
+[data-component="markdown-outline"] {
+  background-color: var(--v2-background-bg-layer-01);
+}
+
+body[data-bg-image="true"] [data-component="markdown-outline"] {
+  background: var(--v2-background-bg-layer-01-opaque, var(--v2-background-bg-layer-01));
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+}
+
+body[data-bg-image="true"] [data-component="markdown-outline"] button:hover {
+  background-color: var(--v2-background-bg-layer-02-opaque, var(--v2-background-bg-layer-02)) !important;
 }
 
 /* ─── Sticky elements — translucent + frosted glass ─── */

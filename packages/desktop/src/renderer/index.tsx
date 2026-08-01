@@ -307,6 +307,10 @@ const createPlatform = (windowState: DesktopWindowState): Platform => {
         type: "image/png",
       })
     },
+
+    pickBackgroundImage: () => window.api.pickBackgroundImage(),
+    getBackgroundImage: () => window.api.getBackgroundImage(),
+    clearBackgroundImage: () => window.api.clearBackgroundImage(),
   }
 }
 
@@ -357,10 +361,17 @@ function DesktopRoot(props: { windowState: DesktopWindowState }) {
     createEffect(() => {
       theme.themeId()
       theme.mode()
-      const bg = getComputedStyle(document.documentElement).getPropertyValue("--background-base").trim()
-      if (bg) {
-        void window.api.setBackgroundColor(bg)
+      const raw = getComputedStyle(document.documentElement).getPropertyValue("--background-base").trim()
+      if (!raw) return
+      // When a background image is enabled, --background-base is overridden to rgba with
+      // alpha. Electron's setBackgroundColor requires an opaque color, so strip the alpha.
+      const match = /rgba?\(\s*([^)]+)\)/.exec(raw)
+      if (match) {
+        const [r, g, b] = match[1]!.split(",").map((part) => part.trim())
+        void window.api.setBackgroundColor(`rgb(${r}, ${g}, ${b})`)
+        return
       }
+      void window.api.setBackgroundColor(raw)
     })
 
     return null

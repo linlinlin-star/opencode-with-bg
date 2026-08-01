@@ -7,6 +7,7 @@ import type { DesktopMenuAction } from "@opencode-ai/app/desktop-menu"
 
 import type { FatalRendererError, ServerReadyData, TitlebarTheme } from "../preload/types"
 import { runDesktopMenuAction } from "./desktop-menu-actions"
+import { clearBackgroundImage, getBackgroundImage, pickBackgroundImage } from "./background-image"
 import { setForceFocus } from "./debug"
 import { assertAttachmentBudget, createPickedFileAuthorizations } from "./attachment-picker"
 import { getStore, removeStoreFileIfEmpty } from "./store"
@@ -87,6 +88,11 @@ export function registerIpcHandlers(deps: Deps) {
   ipcMain.handle("updater-check", () => deps.updater.check())
   ipcMain.handle("updater-install", () => deps.updater.install())
   ipcMain.handle("set-background-color", (_event: IpcMainInvokeEvent, color: string) => deps.setBackgroundColor(color))
+  ipcMain.handle("pick-background-image", (event: IpcMainInvokeEvent) =>
+    pickBackgroundImage(BrowserWindow.fromWebContents(event.sender) ?? undefined),
+  )
+  ipcMain.handle("get-background-image", () => getBackgroundImage())
+  ipcMain.handle("clear-background-image", () => clearBackgroundImage())
   ipcMain.handle("export-debug-logs", () => deps.exportDebugLogs())
   ipcMain.handle("set-force-focus", (event: IpcMainInvokeEvent, enabled: boolean) =>
     setForceFocus(event.sender, enabled),

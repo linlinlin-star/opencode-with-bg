@@ -7,6 +7,10 @@ import type { WslServersPlatform } from "../wsl/types"
 import type { UpdaterPlatform } from "../updater"
 
 type PickerPaths = string | string[] | null
+
+/** Background image payload returned by the desktop-only platform methods. */
+export type BackgroundImagePayload = { dataURL: string; width: number; height: number }
+
 type OpenDirectoryPickerOptions = { title?: string; multiple?: boolean }
 type OpenAttachmentPickerOptions = {
   title?: string
@@ -108,6 +112,15 @@ type PlatformBase = {
 
   /** Read image from clipboard (desktop only) */
   readClipboardImage?(): Promise<File | null>
+
+  /** Choose and persist a background image, returning its data URL and dimensions (desktop only) */
+  pickBackgroundImage?(): Promise<BackgroundImagePayload | null>
+
+  /** Read the persisted background image, if any (desktop only) */
+  getBackgroundImage?(): Promise<BackgroundImagePayload | null>
+
+  /** Remove the persisted background image (desktop only) */
+  clearBackgroundImage?(): Promise<void>
 
   /** Export collected diagnostic logs (desktop only) */
   exportDebugLogs?(): Promise<string>

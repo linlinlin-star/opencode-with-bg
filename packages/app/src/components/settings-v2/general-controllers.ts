@@ -1,6 +1,8 @@
 import { createMemo, createResource, onMount, type Accessor } from "solid-js"
 import type { ColorScheme } from "@opencode-ai/ui/theme/context"
 import { useTheme } from "@opencode-ai/ui/theme/context"
+import { useBackgroundImage } from "@/context/background-image"
+import type { BackgroundImageSize } from "@/context/settings"
 import { usePermission } from "@/context/permission"
 import { useServerSDK } from "@/context/server-sdk"
 import { useServerSync } from "@/context/server-sync"
@@ -75,6 +77,7 @@ export function createShellSettingsController() {
 export function createAppearanceSettingsController() {
   const settings = useSettings()
   const theme = useTheme()
+  const bg = useBackgroundImage()
   const themes = createMemo(() => theme.ids().map((id) => ({ id, name: theme.name(id) })))
 
   onMount(() => void theme.loadThemes())
@@ -108,6 +111,24 @@ export function createAppearanceSettingsController() {
       setUI: (value: string) => settings.appearance.setUIFont(value),
       setCode: (value: string) => settings.appearance.setFont(value),
       setTerminal: (value: string) => settings.appearance.setTerminalFont(value),
+    },
+    background: {
+      enabled: settings.appearance.backgroundImage.enabled,
+      setEnabled: settings.appearance.backgroundImage.setEnabled,
+      opacity: settings.appearance.backgroundImage.opacity,
+      setOpacity: settings.appearance.backgroundImage.setOpacity,
+      blur: settings.appearance.backgroundImage.blur,
+      setBlur: settings.appearance.backgroundImage.setBlur,
+      size: settings.appearance.backgroundImage.size,
+      setSize: (value: BackgroundImageSize) => settings.appearance.backgroundImage.setSize(value),
+      repeat: settings.appearance.backgroundImage.repeat,
+      setRepeat: settings.appearance.backgroundImage.setRepeat,
+      dim: settings.appearance.backgroundImage.dim,
+      setDim: settings.appearance.backgroundImage.setDim,
+      hasImage: bg.hasImage,
+      imageURL: bg.imageURL,
+      pick: bg.pick,
+      clear: bg.clear,
     },
   }
 }
