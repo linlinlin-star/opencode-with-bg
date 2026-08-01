@@ -14,10 +14,13 @@ export type SelectedLineRange = {
   endSide?: "additions" | "deletions"
 }
 
+export type MarkdownPreviewMode = "source" | "preview" | "split"
+
 export type FileViewState = {
   scrollTop?: number
   scrollLeft?: number
   selectedLines?: SelectedLineRange | null
+  previewMode?: MarkdownPreviewMode
 }
 
 export type FileState = {

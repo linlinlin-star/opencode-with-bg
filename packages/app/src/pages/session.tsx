@@ -10,6 +10,7 @@ import {
   Show,
   Match,
   Switch,
+  For,
   createMemo,
   createEffect,
   createComputed,
@@ -36,6 +37,8 @@ import { ButtonV2 } from "@opencode-ai/ui/v2/button-v2"
 import { createAutoScroll } from "@opencode-ai/ui/hooks"
 import { previewSelectedLines } from "@opencode-ai/session-ui/pierre/selection-bridge"
 import { Button } from "@opencode-ai/ui/button"
+import { Icon } from "@opencode-ai/ui/icon"
+import { IconButton } from "@opencode-ai/ui/icon-button"
 import { showToast } from "@/utils/toast"
 import { base64Encode, checksum } from "@opencode-ai/core/util/encode"
 import { useLocation, useNavigate, useParams, useSearchParams } from "@solidjs/router"
@@ -347,6 +350,59 @@ function SessionPanelFrame(props: ParentProps<{ newLayout: boolean; raised?: boo
       }}
     >
       {props.children}
+    </div>
+  )
+}
+
+type ConversationOutlineItem = { id: string; text: string; index: number }
+
+// Conversation outline panel — floating sidebar over the message timeline.
+// Lists each user turn with a text preview; clicking an item reveals that
+// message via the timeline virtualizer's scrollToIndex. Reuses the
+// markdown-outline data-component so it inherits the background-image
+// frosted-glass overlay styling.
+function ConversationOutline(props: {
+  items: ConversationOutlineItem[]
+  titleLabel: string
+  emptyLabel: string
+  onClose: () => void
+  onSelect: (item: ConversationOutlineItem) => void
+}) {
+  return (
+    <div
+      data-component="markdown-outline"
+      class="absolute right-0 top-16 bottom-0 z-20 w-60 border-l border-border-base shadow-lg flex flex-col"
+    >
+      <div class="flex items-center justify-between px-3 py-2 text-12-medium text-text-muted border-b border-border-base shrink-0">
+        <span class="truncate">{props.titleLabel}</span>
+        <IconButton
+          icon="close-small"
+          variant="ghost"
+          size="small"
+          class="size-6 rounded-md shrink-0"
+          onClick={props.onClose}
+        />
+      </div>
+      <div class="flex-1 min-h-0 overflow-auto py-1">
+        <Show
+          when={props.items.length > 0}
+          fallback={<div class="px-3 py-2 text-12-regular text-text-weak">{props.emptyLabel}</div>}
+        >
+          <For each={props.items}>
+            {(item) => (
+              <button
+                type="button"
+                class="flex w-full items-baseline gap-1.5 py-1.5 pr-3 pl-3 text-left text-12-regular text-text-base hover:bg-bg-layer-02 transition-colors"
+                onClick={() => props.onSelect(item)}
+                title={item.text}
+              >
+                <span class="shrink-0 text-text-weak tabular-nums">{item.index}.</span>
+                <span class="min-w-0 truncate">{item.text}</span>
+              </button>
+            )}
+          </For>
+        </Show>
+      </div>
     </div>
   )
 }
@@ -876,6 +932,9 @@ export default function Page() {
   let scrollToEnd = () => {}
   let scrollMark = 0
   let messageMark = 0
+  const [conversationOutlineOpen, setConversationOutlineOpen] = createSignal(false)
+
+  createEffect(on(() => params.id, () => setConversationOutlineOpen(false)))
 
   const scrollGestureWindowMs = 250
 
@@ -1729,6 +1788,14 @@ export default function Page() {
     return `[${language.t("common.attachment")}]`
   }
 
+  const conversationOutlineItems = createMemo<ConversationOutlineItem[]>(() =>
+    visibleUserMessages().map((msg, index) => ({
+      id: msg.id,
+      text: line(msg.id),
+      index: index + 1,
+    })),
+  )
+
   const fail = (err: unknown) => {
     showToast({
       variant: "error",
@@ -2105,7 +2172,7 @@ export default function Page() {
       <Show when={!isDesktop() && !!params.id && settings.general.newLayoutDesigns() && !mobileTabsBottom()}>
         {mobileTabs(true)}
       </Show>
-      <div class="flex-1 min-h-0 overflow-hidden">
+      <div class="relative flex-1 min-h-0 overflow-hidden">
         <Switch>
           <Match when={params.id && mobileChanges()}>
             <div class="relative h-full overflow-hidden">
@@ -2167,6 +2234,27 @@ export default function Page() {
             <NewSessionView worktree={newSessionWorktree()} />
           </Match>
         </Switch>
+        <Show when={!!params.id && isDesktop() && visibleUserMessages().length > 0 && !conversationOutlineOpen()}>
+          <IconButton
+            icon="bullet-list"
+            variant="ghost"
+            size="small"
+            class="absolute right-2 top-14 z-30 size-7 rounded-md bg-bg-layer-01/80 backdrop-blur-sm border border-border-base shadow-sm"
+            classList={{ "bg-bg-layer-02": conversationOutlineOpen() }}
+            aria-label={language.t("session.conversation.outline")}
+            aria-pressed={conversationOutlineOpen()}
+            onClick={() => setConversationOutlineOpen((v) => !v)}
+          />
+        </Show>
+        <Show when={conversationOutlineOpen() && !!params.id}>
+          <ConversationOutline
+            items={conversationOutlineItems()}
+            titleLabel={language.t("session.conversation.outline")}
+            emptyLabel={language.t("session.conversation.outline.empty")}
+            onClose={() => setConversationOutlineOpen(false)}
+            onSelect={(item) => revealMessage(item.id)}
+          />
+        </Show>
       </div>
 
       <Show when={(params.id || !newSessionDesign()) && !mobileChanges()}>

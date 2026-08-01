@@ -161,6 +161,13 @@ export function createFileTreeStore(options: TreeStoreOptions) {
     return out
   }
 
+  // 切换分支等导致整棵树失效的场景:对所有已加载目录强制重新拉取,保留展开状态
+  const refreshAllLoaded = () => {
+    for (const dir of Object.keys(tree.dir)) {
+      if (tree.dir[dir]?.loaded) void listDir(dir, { force: true })
+    }
+  }
+
   return {
     listDir,
     expandDir,
@@ -169,6 +176,7 @@ export function createFileTreeStore(options: TreeStoreOptions) {
     children,
     node: (path: string) => tree.node[path],
     isLoaded: (path: string) => Boolean(tree.dir[path]?.loaded),
+    refreshAllLoaded,
     reset,
   }
 }

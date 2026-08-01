@@ -3,6 +3,14 @@ export function stripFileProtocol(input: string) {
   return input.slice("file://".length)
 }
 
+const MARKDOWN_EXTENSIONS = new Set([".md", ".markdown", ".mdx"])
+
+export function isMarkdownPath(path: string): boolean {
+  const dot = path.lastIndexOf(".")
+  if (dot < 0) return false
+  return MARKDOWN_EXTENSIONS.has(path.slice(dot).toLowerCase())
+}
+
 export function stripQueryAndHash(input: string) {
   const hashIndex = input.indexOf("#")
   const queryIndex = input.indexOf("?")

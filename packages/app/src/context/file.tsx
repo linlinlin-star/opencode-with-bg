@@ -31,10 +31,11 @@ import {
   type FileState,
   type FileSelection,
   type FileViewState,
+  type MarkdownPreviewMode,
   type SelectedLineRange,
 } from "./file/types"
 
-export type { FileSelection, SelectedLineRange, FileViewState, FileState }
+export type { FileSelection, SelectedLineRange, FileViewState, FileState, MarkdownPreviewMode }
 export { selectionFromLines }
 export {
   evictContentLru,
@@ -251,16 +252,19 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
       return state
     }
 
-    function withPath(input: string, action: (file: string) => unknown) {
+    function withPath<T>(input: string, action: (file: string) => T) {
       return action(path.normalize(input))
     }
     const scrollTop = (input: string) => withPath(input, (file) => view().scrollTop(file))
     const scrollLeft = (input: string) => withPath(input, (file) => view().scrollLeft(file))
     const selectedLines = (input: string) => withPath(input, (file) => view().selectedLines(file))
+    const previewMode = (input: string) => withPath(input, (file) => view().previewMode(file))
     const setScrollTop = (input: string, top: number) => withPath(input, (file) => view().setScrollTop(file, top))
     const setScrollLeft = (input: string, left: number) => withPath(input, (file) => view().setScrollLeft(file, left))
     const setSelectedLines = (input: string, range: SelectedLineRange | null) =>
       withPath(input, (file) => view().setSelectedLines(file, range))
+    const setPreviewMode = (input: string, mode: MarkdownPreviewMode) =>
+      withPath(input, (file) => view().setPreviewMode(file, mode))
 
     onCleanup(() => {
       stop()
@@ -275,6 +279,7 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
       tree: {
         list: tree.listDir,
         refresh: (input: string) => tree.listDir(input, { force: true }),
+        refreshAll: () => tree.refreshAllLoaded(),
         state: tree.dirState,
         children: tree.children,
         expand: tree.expandDir,
@@ -295,6 +300,8 @@ export const { use: useFile, provider: FileProvider } = createSimpleContext({
       setScrollLeft,
       selectedLines,
       setSelectedLines,
+      previewMode,
+      setPreviewMode,
       searchFiles: (query: string, options?: { limit?: number; signal?: AbortSignal }) =>
         search(query, "false", options),
       searchFilesAndDirectories: (query: string) => search(query, "true"),
