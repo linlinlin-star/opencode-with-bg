@@ -21,6 +21,7 @@ const metainfoFpm = (appId: string) =>
 async function signWindows(configuration: { path: string }) {
   if (process.platform !== "win32") return
   if (process.env.GITHUB_ACTIONS !== "true") return
+  if (!process.env.AZURE_CLIENT_ID) return
 
   await execFileAsync(
     "pwsh",
@@ -144,12 +145,18 @@ function getConfig() {
       }
     }
     case "prod": {
+      const githubRepository = process.env.GITHUB_REPOSITORY?.split("/")
       return {
         ...base,
         appId,
         productName: "OpenCode",
         protocols: { name: "OpenCode", schemes: ["opencode"] },
-        publish: { provider: "github", owner: "anomalyco", repo: "opencode", channel: "latest" },
+        publish: {
+          provider: "github",
+          owner: githubRepository?.[0] ?? "anomalyco",
+          repo: githubRepository?.[1] ?? "opencode",
+          channel: "latest",
+        },
         deb: { fpm: [metainfoFpm(appId), legacyDesktopEntryFpm] },
         rpm: { packageName: "opencode", fpm: [metainfoFpm(appId), legacyDesktopEntryFpm] },
       }

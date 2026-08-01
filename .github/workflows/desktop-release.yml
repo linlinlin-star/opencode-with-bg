@@ -1,0 +1,79 @@
+name: desktop-release
+run-name: "desktop release ${{ inputs.version || github.ref_name }}"
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 1.18.11"
+        required: true
+        type: string
+
+concurrency:
+  group: desktop-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup-bun
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          VERSION="${{ inputs.version || github.ref_name }}"
+          VERSION="${VERSION#v}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare
+        run: bun ./scripts/prepare.ts
+        working-directory: packages/desktop
+        env:
+          OPENCODE_VERSION: ${{ steps.version.outputs.version }}
+          OPENCODE_CHANNEL: prod
+          RUST_TARGET: x86_64-pc-windows-msvc
+
+      - name: Build
+        run: bun run build
+        working-directory: packages/desktop
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          OPENCODE_CHANNEL: prod
+
+      - name: Package
+        run: npx electron-builder --win --publish never --config electron-builder.config.ts
+        working-directory: packages/desktop
+        timeout-minutes: 60
+        env:
+          OPENCODE_CHANNEL: prod
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: opencode-desktop-win-x64
+          path: packages/desktop/dist/*
+
+      - name: Create release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "v${{ steps.version.outputs.version }}" --generate-notes --repo "${{ github.repository }}" || true
+
+      - name: Upload release assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd packages/desktop/dist
+          gh release upload "v${{ steps.version.outputs.version }}" opencode-desktop-win-x64.exe latest.yml opencode-desktop-win-x64.exe.blockmap --clobber --repo "${{ github.repository }}"
