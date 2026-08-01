@@ -56,6 +56,7 @@ export type SessionReviewV2SidebarProps = {
   maxWidth?: number
   viewportRef?: (element: HTMLDivElement) => void
   children?: JSX.Element
+  footer?: JSX.Element
 }
 
 export function SessionReviewV2Sidebar(props: SessionReviewV2SidebarProps) {
@@ -129,6 +130,7 @@ export function SessionReviewV2Sidebar(props: SessionReviewV2SidebarProps) {
           >
             {props.children}
           </ScrollView>
+          {props.footer}
         </aside>
       </Show>
       <Show when={props.open && props.onWidthChange}>

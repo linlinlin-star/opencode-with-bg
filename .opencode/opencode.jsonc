@@ -17,15 +17,5 @@
     "github-triage": false,
     "github-pr-search": false,
   },
-  "profile": {
-    "skills": {
-      "sources": [
-        { "type": "directory", "path": "e:\\Trae\\workbench\\opencode\\.opencode\\skills" }
-      ]
-    },
-    "rules": {
-      "instructions": [".opencode/rules/my-style.md"],
-      "inline": "回答简洁，先给结论再展开；代码改动附 file:line 引用"
-    }
-  },
+  
 }
