@@ -62,11 +62,36 @@ function escape(text: string) {
     .replace(/'/g, "&#39;")
 }
 
+// UTF-8 safe base64 helpers. We must NOT use the deprecated escape/unescape
+// pair here: this module shadows the global `escape` with an HTML-escaping
+// function of the same name, which would silently break the legacy
+// `decodeURIComponent(escape(atob(...)))` round-trip and throw URIError.
+function encodeMermaidSource(source: string): string {
+  const bytes = new TextEncoder().encode(source)
+  let binary = ""
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+  return btoa(binary)
+}
+
+function decodeMermaidSource(encoded: string): string {
+  const binary = atob(encoded)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return new TextDecoder().decode(bytes)
+}
+
 function fallback(markdown: string) {
   return escape(markdown).replace(/\r\n?/g, "\n").replace(/\n/g, "<br>")
 }
 
 async function code(text: string, language: string | undefined, key: string, complete = false) {
+  if (language === "mermaid") {
+    // Mermaid is rendered to SVG by renderMermaidDiagrams at the DOM layer,
+    // not by the shiki worker. Carry the base64-encoded source as a single
+    // stable token so updateCodeBlock can plant the placeholder div.
+    const encoded = encodeMermaidSource(text)
+    return { language: "mermaid", generation: 0, stable: [[encoded, ""]] as MarkdownToken[], unstable: [] }
+  }
   const name = language && language in bundledLanguages ? language : "text"
   try {
     const result = await highlightStreamingCode(key, text, name, complete)
@@ -79,6 +104,103 @@ async function code(text: string, language: string | undefined, key: string, com
     )
       console.error("Markdown highlighting worker failed", error)
     return { language: name, generation: 0, stable: [], unstable: [[text, ""] as MarkdownToken] }
+  }
+}
+
+// Mermaid diagrams are rendered lazily from the placeholder divs planted by
+// updateCodeBlock. The SVG output is cached by source so repeated diagrams are
+// cheap. initialize() is called exactly once — repeated calls cause mermaid v11
+// to re-register its WASM layout engine, throwing "Setting Wasm as parent of
+// Wasm would create a cycle". render() calls are serialized via a lock for the
+// same reason: concurrent WASM access corrupts the layout engine state.
+const mermaidCache = new Map<string, string>()
+let mermaidApi: typeof import("mermaid").default | null = null
+let mermaidInitPromise: Promise<typeof import("mermaid").default> | null = null
+let renderLock: Promise<unknown> = Promise.resolve()
+
+function mermaidTheme(): "default" | "dark" {
+  return document.documentElement.dataset.colorScheme === "dark" ? "dark" : "default"
+}
+
+async function ensureMermaid() {
+  if (mermaidApi) return mermaidApi
+  if (mermaidInitPromise) return mermaidInitPromise
+  mermaidInitPromise = (async () => {
+    const mermaid = (await import("mermaid")).default
+    // securityLevel "loose" — we already sanitize via DOMPurify at the marked
+    // layer; "strict" forces WASM sandboxing which amplifies the cycle bug.
+    mermaid.initialize({ startOnLoad: false, theme: mermaidTheme(), securityLevel: "loose" })
+    mermaidApi = mermaid
+    return mermaid
+  })()
+  return mermaidInitPromise
+}
+
+async function renderMermaidDiagrams(root: Element) {
+  // Clear stale rendering flags left by a crashed previous attempt (e.g. a
+  // decode error that propagated before the finally block could clean up).
+  root.querySelectorAll<HTMLElement>(".mermaid-diagram[data-rendering]").forEach((div) => {
+    div.removeAttribute("data-rendering")
+  })
+
+  const diagrams = Array.from(
+    root.querySelectorAll<HTMLElement>(".mermaid-diagram:not([data-rendered]):not([data-rendering])"),
+  )
+  console.log("[mermaid] renderMermaidDiagrams:", { total: root.querySelectorAll(".mermaid-diagram").length, pending: diagrams.length })
+  if (diagrams.length === 0) return
+
+  const theme = mermaidTheme()
+  let mermaid
+  try {
+    mermaid = await ensureMermaid()
+    console.log("[mermaid] ensureMermaid ok", { theme })
+  } catch (err) {
+    console.error("[mermaid] ensureMermaid failed", err)
+    for (const div of diagrams) {
+      div.setAttribute("data-error", "true")
+      div.innerHTML = `<pre class="mermaid-error">Mermaid failed to load</pre>`
+    }
+    return
+  }
+
+  for (const div of diagrams) {
+    const encoded = div.dataset.source ?? ""
+    let source: string
+    try {
+      source = decodeMermaidSource(encoded)
+    } catch {
+      div.setAttribute("data-error", "true")
+      div.innerHTML = `<pre class="mermaid-error">Failed to decode diagram source</pre>`
+      continue
+    }
+    div.setAttribute("data-rendering", "true")
+    console.log("[mermaid] rendering diagram", { sourceLen: source.length, sourcePreview: source.slice(0, 60) })
+    const cached = mermaidCache.get(source)
+    if (cached) {
+      div.innerHTML = cached
+      div.setAttribute("data-rendered", "true")
+      div.removeAttribute("data-rendering")
+      continue
+    }
+    // Serialize mermaid.render calls — concurrent WASM layout engine access
+    // throws "Setting Wasm as parent of Wasm would create a cycle".
+    const id = `mermaid-${Math.random().toString(36).slice(2, 10)}`
+    const renderPromise = renderLock.then(() => mermaid.render(id, source))
+    renderLock = renderPromise.catch(() => {})
+    try {
+      const { svg } = await renderPromise
+      console.log("[mermaid] render ok", { id, svgLen: svg.length })
+      mermaidCache.set(source, svg)
+      div.innerHTML = svg
+      div.setAttribute("data-rendered", "true")
+    } catch (error) {
+      console.error("[mermaid] render failed", error)
+      div.setAttribute("data-error", "true")
+      const message = error instanceof Error ? error.message : String(error)
+      div.innerHTML = `<pre class="mermaid-error">${escape(message)}</pre>`
+    } finally {
+      div.removeAttribute("data-rendering")
+    }
   }
 }
 
@@ -420,6 +542,7 @@ export function Markdown(
           if (key) {
             const cached = getCachedMarkdown(key)
             if (cached?.raw === block.raw) {
+              console.log("[mermaid] cache hit", { key, hasPlaceholder: cached.html.includes("mermaid-diagram") })
               touchCachedMarkdown(key, cached)
               return { key: blockKey, mode: block.mode, ...cached }
             }
@@ -427,6 +550,7 @@ export function Markdown(
 
           const hash = checksum(block.raw)
           const safe = sanitizeMarkdown(await Promise.resolve(marked.parse(block.src)))
+          console.log("[mermaid] full-mode html", { hasPlaceholder: safe.includes("mermaid-diagram"), hasSource: safe.includes("data-source") })
           if (key && hash) touchCachedMarkdown(key, { raw: block.raw, hash, html: safe })
           return { key: blockKey, mode: block.mode, raw: block.raw, hash: hash ?? "", html: safe }
         }),
@@ -493,6 +617,32 @@ export function Markdown(
         copy: i18n.t("ui.message.copy"),
         copied: i18n.t("ui.message.copied"),
       }))
+    void renderMermaidDiagrams(container)
+  })
+
+  // Re-render mermaid diagrams when the color scheme switches. The mermaid
+  // library is initialized only once (re-initializing causes WASM cycle errors),
+  // so re-rendered diagrams keep the original theme — but clearing the cache and
+  // data-rendered flags at least refreshes the SVG output without crashing.
+  let lastTheme = mermaidTheme()
+  createEffect(() => {
+    const el = root()
+    if (!el) return
+    if (typeof MutationObserver === "undefined") return
+    const observer = new MutationObserver(() => {
+      const theme = mermaidTheme()
+      if (theme === lastTheme) return
+      lastTheme = theme
+      mermaidCache.clear()
+      el.querySelectorAll<HTMLElement>(".mermaid-diagram").forEach((div) => {
+        div.removeAttribute("data-rendered")
+        div.removeAttribute("data-error")
+        div.removeAttribute("data-rendering")
+      })
+      void renderMermaidDiagrams(el)
+    })
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-color-scheme"] })
+    onCleanup(() => observer.disconnect())
   })
 
   onCleanup(() => {
@@ -606,6 +756,21 @@ function updateCodeBlock(
   next.dataset.markdownHash = block.hash
   next.dataset.markdownComplete = block.complete ? "true" : "false"
   next.style.display = "contents"
+
+  if (block.language === "mermaid") {
+    const encoded = block.stable[0]?.[0] ?? ""
+    if (!next.querySelector(".mermaid-diagram")) {
+      next.innerHTML = `<div class="mermaid-diagram" data-source="${encoded}"></div>`
+    }
+    if (existing) return
+    if (current) {
+      disposeCopyButtons(current)
+      current.replaceWith(next)
+      return
+    }
+    container.appendChild(next)
+    return
+  }
 
   const code = existing?.querySelector("code")
   if (code instanceof HTMLElement) {

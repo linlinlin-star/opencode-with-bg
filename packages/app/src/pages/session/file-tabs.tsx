@@ -1,21 +1,31 @@
-import { createEffect, createMemo, createSignal, Match, on, onCleanup, Show, Switch } from "solid-js"
+import { createEffect, createMemo, createSignal, For, Match, on, onCleanup, Show, Switch } from "solid-js"
 import { createStore } from "solid-js/store"
 import { Dynamic } from "solid-js/web"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import type { FileSearchHandle } from "@opencode-ai/session-ui/file"
+import { Markdown } from "@opencode-ai/session-ui/markdown"
 import { useFileComponent } from "@opencode-ai/ui/context/file"
 import { cloneSelectedLineRange, previewSelectedLines } from "@opencode-ai/session-ui/pierre/selection-bridge"
 import { createLineCommentController } from "@opencode-ai/session-ui/line-comment-annotations"
 import { createLineCommentControllerV2 } from "@opencode-ai/session-ui/v2/line-comment-annotations-v2"
 import { sampledChecksum } from "@opencode-ai/core/util/encode"
 import { DropdownMenu } from "@opencode-ai/ui/dropdown-menu"
+import { Icon } from "@opencode-ai/ui/icon"
 import { IconButton } from "@opencode-ai/ui/icon-button"
 import { LineCommentV2OverflowIcon } from "@opencode-ai/ui/v2/line-comment-v2"
 import { MenuV2 } from "@opencode-ai/ui/v2/menu-v2"
+import { SegmentedControlV2, SegmentedControlItemV2 } from "@opencode-ai/ui/v2/segmented-control-v2"
 import { Tabs } from "@opencode-ai/ui/tabs"
 import { ScrollView } from "@opencode-ai/ui/scroll-view"
 import { showToast } from "@/utils/toast"
-import { selectionFromLines, useFile, type FileSelection, type SelectedLineRange } from "@/context/file"
+import {
+  selectionFromLines,
+  useFile,
+  type FileSelection,
+  type MarkdownPreviewMode,
+  type SelectedLineRange,
+} from "@/context/file"
+import { isMarkdownPath } from "@/context/file/path"
 import { useComments } from "@/context/comments"
 import { useLanguage } from "@/context/language"
 import { usePrompt } from "@/context/prompt"
@@ -204,6 +214,188 @@ function createScrollSync(input: { tab: () => string; view: ReturnType<typeof us
     setViewport,
   }
 }
+
+// Proportional scroll sync between the source and preview panes of the split
+// markdown view. A syncing flag breaks the feedback loop where syncing B's
+// scrollTop fires A's scroll event, which would sync B again.
+function createSplitScrollSync() {
+  const [sourceEl, setSourceEl] = createSignal<HTMLDivElement>()
+  const [previewEl, setPreviewEl] = createSignal<HTMLDivElement>()
+  let syncing = false
+
+  const sync = (from: HTMLDivElement, to: HTMLDivElement | undefined) => {
+    if (!to || syncing) return
+    const max = from.scrollHeight - from.clientHeight
+    if (max <= 0) return
+    const ratio = from.scrollTop / max
+    const targetMax = to.scrollHeight - to.clientHeight
+    const next = Math.round(ratio * targetMax)
+    if (Math.abs(to.scrollTop - next) < 1) return
+    syncing = true
+    to.scrollTop = next
+    requestAnimationFrame(() => {
+      syncing = false
+    })
+  }
+
+  createEffect(() => {
+    const el = sourceEl()
+    if (el) makeEventListener(el, "scroll", () => sync(el, previewEl()))
+  })
+  createEffect(() => {
+    const el = previewEl()
+    if (el) makeEventListener(el, "scroll", () => sync(el, sourceEl()))
+  })
+
+  return { setSource: setSourceEl, setPreview: setPreviewEl }
+}
+
+function Breadcrumb(props: { path: string; onCrumbClick: (dirPath: string) => void }) {
+  const segments = createMemo(() => props.path.split(/[/\\]/).filter(Boolean))
+  const crumbs = createMemo(() => {
+    const result: { label: string; dirPath: string }[] = []
+    let acc = ""
+    for (const seg of segments()) {
+      acc = acc ? `${acc}/${seg}` : seg
+      result.push({ label: seg, dirPath: acc })
+    }
+    return result
+  })
+  return (
+    <nav class="flex items-center gap-0.5 min-w-0 overflow-hidden text-12-regular text-text-muted">
+      <For each={crumbs()}>
+        {(item, index) => (
+          <>
+            <Show when={index() > 0}>
+              <Icon name="chevron-right" class="size-3 shrink-0 opacity-50" />
+            </Show>
+            <button
+              type="button"
+              class="truncate px-1 py-0.5 rounded hover:bg-bg-layer-02 transition-colors"
+              classList={{ "text-text-base font-medium": index() === segments().length - 1 }}
+              onClick={() => index() < segments().length - 1 && props.onCrumbClick(item.dirPath)}
+            >
+              {item.label}
+            </button>
+          </>
+        )}
+      </For>
+    </nav>
+  )
+}
+
+function MarkdownToolbar(props: {
+  path: string
+  mode: MarkdownPreviewMode
+  onModeChange: (mode: MarkdownPreviewMode) => void
+  outlineOpen: boolean
+  onToggleOutline: () => void
+  onCrumbClick: (dirPath: string) => void
+  sourceLabel: string
+  splitLabel: string
+  previewLabel: string
+  outlineLabel: string
+}) {
+  return (
+    <div class="flex items-center justify-between gap-2 px-3 py-1.5 border-b border-border-base shrink-0">
+      <div class="min-w-0 flex-1">
+        <Breadcrumb path={props.path} onCrumbClick={props.onCrumbClick} />
+      </div>
+      <div class="flex items-center gap-1 shrink-0">
+        <SegmentedControlV2 value={props.mode} onChange={(v) => {
+          if (v) props.onModeChange(v as MarkdownPreviewMode)
+        }}>
+          <SegmentedControlItemV2 value="source">{props.sourceLabel}</SegmentedControlItemV2>
+          <SegmentedControlItemV2 value="split">{props.splitLabel}</SegmentedControlItemV2>
+          <SegmentedControlItemV2 value="preview">{props.previewLabel}</SegmentedControlItemV2>
+        </SegmentedControlV2>
+        <Show when={props.mode !== "source"}>
+          <IconButton
+            icon="bullet-list"
+            variant="ghost"
+            size="small"
+            class="size-7 rounded-md"
+            classList={{ "bg-bg-layer-02": props.outlineOpen }}
+            aria-label={props.outlineLabel}
+            aria-pressed={props.outlineOpen}
+            onClick={props.onToggleOutline}
+          />
+        </Show>
+      </div>
+    </div>
+  )
+}
+
+type MarkdownHeading = { level: number; text: string }
+
+// Parse ATX headings (# .. ######) from raw markdown source. Fenced code
+// blocks are skipped so `#` comments inside code are not treated as headings.
+function parseMarkdownOutline(source: string): MarkdownHeading[] {
+  const lines = source.split(/\r?\n/)
+  let inFence = false
+  const result: MarkdownHeading[] = []
+  for (const line of lines) {
+    if (/^\s*```/.test(line)) {
+      inFence = !inFence
+      continue
+    }
+    if (inFence) continue
+    const match = /^\s{0,3}(\#{1,6})\s+(.+?)\s*#*\s*$/.exec(line)
+    if (!match) continue
+    const level = match[1].length
+    const text = match[2].replace(/[`*_~]/g, "").trim()
+    if (!text) continue
+    result.push({ level, text })
+  }
+  return result
+}
+
+function MarkdownOutline(props: {
+  headings: MarkdownHeading[]
+  titleLabel: string
+  emptyLabel: string
+  onClose: () => void
+  onSelect: (heading: MarkdownHeading, index: number) => void
+}) {
+  return (
+    <div
+      data-component="markdown-outline"
+      class="absolute right-0 top-0 bottom-0 z-20 w-60 border-l border-border-base shadow-lg flex flex-col"
+    >
+      <div class="flex items-center justify-between px-3 py-2 text-12-medium text-text-muted border-b border-border-base shrink-0">
+        <span class="truncate">{props.titleLabel}</span>
+        <IconButton
+          icon="close-small"
+          variant="ghost"
+          size="small"
+          class="size-6 rounded-md shrink-0"
+          onClick={props.onClose}
+        />
+      </div>
+      <div class="flex-1 min-h-0 overflow-auto py-1">
+        <Show
+          when={props.headings.length > 0}
+          fallback={<div class="px-3 py-2 text-12-regular text-text-weak">{props.emptyLabel}</div>}
+        >
+          <For each={props.headings}>
+            {(heading, index) => (
+              <button
+                type="button"
+                class="block w-full text-left py-1 pr-3 text-12-regular text-text-base hover:bg-bg-layer-02 transition-colors truncate"
+                style={{ "padding-left": `${12 + (heading.level - 1) * 12}px` }}
+                onClick={() => props.onSelect(heading, index())}
+                title={heading.text}
+              >
+                {heading.text}
+              </button>
+            )}
+          </For>
+        </Show>
+      </div>
+    </div>
+  )
+}
+
 
 export function FileTabContent(props: { tab: string }) {
   return (
@@ -548,6 +740,46 @@ function SessionFileViewV2(props: { tab: string }) {
     view,
   })
 
+  const isMarkdown = createMemo(() => {
+    const p = path()
+    return p ? isMarkdownPath(p) : false
+  })
+  const previewMode = createMemo<MarkdownPreviewMode>(() => {
+    if (!isMarkdown()) return "source"
+    const p = path()
+    return p ? (file.previewMode(p) ?? "split") : "source"
+  })
+  const setPreviewMode = (mode: MarkdownPreviewMode) => {
+    const p = path()
+    if (!p) return
+    file.setPreviewMode(p, mode)
+  }
+  const [outlineOpen, setOutlineOpen] = createSignal(false)
+  const splitSync = createSplitScrollSync()
+  const [previewHost, setPreviewHost] = createSignal<HTMLDivElement>()
+  const [splitRatio, setSplitRatio] = createSignal(0.5)
+  let splitContainer: HTMLDivElement | undefined
+
+  const onSplitterMouseDown = (event: MouseEvent) => {
+    event.preventDefault()
+    if (!splitContainer) return
+    const rect = splitContainer.getBoundingClientRect()
+    const onMove = (ev: MouseEvent) => {
+      const ratio = (ev.clientX - rect.left) / rect.width
+      setSplitRatio(Math.min(0.85, Math.max(0.15, ratio)))
+    }
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove)
+      document.removeEventListener("mouseup", onUp)
+      document.body.style.cursor = ""
+      document.body.style.userSelect = ""
+    }
+    document.addEventListener("mousemove", onMove)
+    document.addEventListener("mouseup", onUp)
+    document.body.style.cursor = "col-resize"
+    document.body.style.userSelect = "none"
+  }
+
   const selectionPreview = (source: string, selection: FileSelection) => {
     return previewSelectedLines(source, {
       start: selection.startLine,
@@ -782,19 +1014,133 @@ function SessionFileViewV2(props: { tab: string }) {
     </div>
   )
 
-  const content = () => (
-    <div class="mt-3 relative h-full min-h-0">
-      <ScrollView class="h-full" viewportRef={scrollSync.setViewport} onScroll={scrollSync.handleScroll as any}>
-        <Switch>
-          <Match when={state()?.loaded}>{renderFile(contents())}</Match>
-          <Match when={state()?.loading}>
-            <div class="px-6 py-4 text-text-weak">{language.t("common.loading")}...</div>
-          </Match>
-          <Match when={state()?.error}>{(err) => <div class="px-6 py-4 text-text-weak">{err()}</div>}</Match>
-        </Switch>
-      </ScrollView>
+  const renderMarkdownPreview = () => (
+    <div class="px-6 py-4 max-w-3xl mx-auto">
+      <Markdown text={contents()} cacheKey={cacheKey()} class="markdown-preview select-text" />
     </div>
   )
+
+  const headings = createMemo(() => (isMarkdown() ? parseMarkdownOutline(contents()) : []))
+
+  // Scroll the preview pane to the heading whose text matches the clicked
+  // outline entry. We compute the offset manually and call scrollTo on the
+  // preview container only — scrollIntoView would also scroll every ancestor
+  // scroll container, causing the whole layout to jump.
+  const scrollToHeading = (heading: MarkdownHeading) => {
+    const host = previewHost()
+    if (!host) return
+    const levels = ["h1", "h2", "h3", "h4", "h5", "h6"]
+    const candidates = Array.from(host.querySelectorAll<HTMLElement>(levels.join(",")))
+    // parseMarkdownOutline strips markdown emphasis chars, so match loosely.
+    const target = candidates.find((el) => {
+      const text = (el.textContent ?? "").trim()
+      return text === heading.text || text.includes(heading.text) || heading.text.includes(text)
+    })
+    if (!target) return
+    const hostRect = host.getBoundingClientRect()
+    const targetRect = target.getBoundingClientRect()
+    host.scrollTo({ top: host.scrollTop + targetRect.top - hostRect.top - 8, behavior: "smooth" })
+  }
+
+  const onCrumbClick = (dirPath: string) => {
+    file.tree.expand(dirPath)
+  }
+
+  const loadingBlock = () => (
+    <div class="px-6 py-4 text-text-weak">{language.t("common.loading")}...</div>
+  )
+
+  const content = () => {
+    // Non-markdown files keep the original single-pane code view.
+    if (!isMarkdown()) {
+      return (
+        <div class="mt-3 relative h-full min-h-0">
+          <ScrollView class="h-full" viewportRef={scrollSync.setViewport} onScroll={scrollSync.handleScroll as any}>
+            <Switch>
+              <Match when={state()?.loaded}>{renderFile(contents())}</Match>
+              <Match when={state()?.loading}>{loadingBlock()}</Match>
+              <Match when={state()?.error}>{(err) => <div class="px-6 py-4 text-text-weak">{err()}</div>}</Match>
+            </Switch>
+          </ScrollView>
+        </div>
+      )
+    }
+
+    // Markdown files get a toolbar + mode-driven layout.
+    return (
+      <div class="mt-3 relative h-full min-h-0 flex flex-col">
+        <MarkdownToolbar
+          path={path() ?? ""}
+          mode={previewMode()}
+          onModeChange={setPreviewMode}
+          outlineOpen={outlineOpen()}
+          onToggleOutline={() => setOutlineOpen((v) => !v)}
+          onCrumbClick={onCrumbClick}
+          sourceLabel={language.t("session.markdown.source")}
+          splitLabel={language.t("session.markdown.split")}
+          previewLabel={language.t("session.markdown.preview")}
+          outlineLabel={language.t("session.markdown.outline")}
+        />
+        <div class="flex-1 min-h-0 relative">
+          <Switch>
+            <Match when={previewMode() === "split"}>
+              <div class="flex h-full" ref={splitContainer}>
+                <div class="h-full min-w-0" style={{ width: `${splitRatio() * 100}%` }}>
+                  <ScrollView class="h-full" viewportRef={splitSync.setSource}>
+                    <Show when={state()?.loaded} fallback={loadingBlock()}>
+                      {renderFile(contents())}
+                    </Show>
+                  </ScrollView>
+                </div>
+                <div
+                  class="w-1 shrink-0 cursor-col-resize bg-v2-border-border-base hover:bg-v2-border-border-strong transition-colors relative"
+                  onMouseDown={onSplitterMouseDown}
+                >
+                  <div class="absolute inset-y-0 -left-1 -right-1" />
+                </div>
+                <div class="h-full min-w-0 flex-1">
+                  <ScrollView
+                    class="h-full"
+                    viewportRef={(el) => {
+                      splitSync.setPreview(el)
+                      setPreviewHost(el)
+                    }}
+                  >
+                    <Show when={state()?.loaded} fallback={loadingBlock()}>
+                      {renderMarkdownPreview()}
+                    </Show>
+                  </ScrollView>
+                </div>
+              </div>
+            </Match>
+            <Match when={previewMode() === "preview"}>
+              <ScrollView class="h-full" viewportRef={setPreviewHost}>
+                <Show when={state()?.loaded} fallback={loadingBlock()}>
+                  {renderMarkdownPreview()}
+                </Show>
+              </ScrollView>
+            </Match>
+            <Match when={previewMode() === "source"}>
+              <ScrollView class="h-full" viewportRef={scrollSync.setViewport} onScroll={scrollSync.handleScroll as any}>
+                <Show when={state()?.loaded} fallback={loadingBlock()}>
+                  {renderFile(contents())}
+                </Show>
+              </ScrollView>
+            </Match>
+          </Switch>
+          <Show when={outlineOpen() && previewMode() !== "source"}>
+            <MarkdownOutline
+              headings={headings()}
+              titleLabel={language.t("session.markdown.outline")}
+              emptyLabel={language.t("session.markdown.outline.empty")}
+              onClose={() => setOutlineOpen(false)}
+              onSelect={(heading) => scrollToHeading(heading)}
+            />
+          </Show>
+        </div>
+      </div>
+    )
+  }
 
   return content()
 }

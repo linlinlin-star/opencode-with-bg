@@ -476,6 +476,18 @@ function renderMathExpressions(html: string): string {
     .join("")
 }
 
+// Wrap mermaid source into a placeholder div. The source is base64-encoded UTF-8
+// so it survives HTML parsing and DOMPurify without colliding with quote/bracket
+// characters in the diagram source. The rendering layer decodes and renders it.
+// TextEncoder is used instead of the deprecated escape/unescape pair so the
+// encoding is independent of any module-local `escape` shadowing.
+function wrapMermaid(source: string): string {
+  const bytes = new TextEncoder().encode(source)
+  let binary = ""
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+  return `<div class="mermaid-diagram" data-source="${btoa(binary)}"></div>`
+}
+
 async function highlightCodeBlocks(html: string): Promise<string> {
   const codeBlockRegex = /<pre><code(?:\s+class="language-([^"]*)")?>([\s\S]*?)<\/code><\/pre>/g
   const matches = [...html.matchAll(codeBlockRegex)]
@@ -498,6 +510,10 @@ async function highlightCodeBlocks(html: string): Promise<string> {
       .replace(/&#39;/g, "'")
 
     let language = lang || "text"
+    if (language === "mermaid") {
+      result = result.replace(fullMatch, () => wrapMermaid(code))
+      continue
+    }
     if (!(language in bundledLanguages)) {
       language = "text"
     }
@@ -534,6 +550,10 @@ export const { use: useMarked, provider: MarkedProvider } = createSimpleContext(
       katexExtension,
       markedShiki({
         async highlight(code, lang) {
+          if (lang === "mermaid") {
+            console.log("[mermaid] marked highlight intercept", { lang, codeLen: code.length })
+            return wrapMermaid(code)
+          }
           const highlighter = await getSharedHighlighter({
             themes: ["OpenCode"],
             langs: [],

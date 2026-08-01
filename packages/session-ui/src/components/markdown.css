@@ -229,10 +229,16 @@
     margin-top: 12px;
     margin-bottom: 24px;
     overflow: auto;
-
-    scrollbar-width: none;
+    scrollbar-width: thin;
     &::-webkit-scrollbar {
-      display: none;
+      height: 8px;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: var(--v2-border-border-muted, rgba(128, 128, 128, 0.4));
+      border-radius: 4px;
+    }
+    &::-webkit-scrollbar-track {
+      background: transparent;
     }
   }
 
@@ -295,6 +301,122 @@
     border-radius: 4px;
     margin: 1.5rem 0;
     display: block;
+  }
+
+  /* Mermaid diagrams */
+  .mermaid-diagram {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    margin: 12px 0 24px;
+    padding: 16px;
+    border-radius: 6px;
+    border: 0.5px solid var(--v2-border-border-base);
+    background: var(--v2-background-bg-layer-02);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    &::-webkit-scrollbar {
+      height: 8px;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: var(--v2-border-border-muted, rgba(128, 128, 128, 0.4));
+      border-radius: 4px;
+    }
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+  }
+
+  /* Hide scrollbars while panning/zooming — the transform-based pan handles
+     overflow manually, and a native scrollbar would conflict with it. */
+  .mermaid-diagram[data-panning],
+  .mermaid-diagram[data-zoomed] {
+    overflow: hidden;
+  }
+
+  .mermaid-diagram svg {
+    /* Render at natural width so wide flowcharts get a horizontal scrollbar
+       instead of being scaled down to unreadable sizes. margin:auto centers
+       small diagrams and falls back to left-align when content overflows,
+       keeping the start reachable via scroll. */
+    flex-shrink: 0;
+    margin: 0 auto;
+    height: auto;
+    transition: transform 150ms ease-out;
+  }
+
+  .mermaid-diagram[data-panning] svg,
+  .mermaid-diagram[data-zoomed] svg {
+    transition: none;
+  }
+
+  .mermaid-diagram[data-error="true"] {
+    justify-content: flex-start;
+    color: var(--v2-text-text-muted);
+    font-size: 13px;
+  }
+
+  .mermaid-diagram .mermaid-error {
+    color: var(--v2-text-text-muted);
+    font-family: var(--font-family-mono);
+    font-size: 12px;
+    line-height: 1.5;
+    word-break: break-word;
+    white-space: pre-wrap;
+  }
+
+  /* Mermaid zoom controls — top-right corner */
+  .mermaid-controls {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    border-radius: 4px;
+    border: 0.5px solid var(--v2-border-border-base);
+    background: var(--v2-background-bg-layer-01);
+    padding: 2px;
+    opacity: 0;
+    transition: opacity 150ms ease-out;
+    z-index: 2;
+  }
+
+  .mermaid-diagram:hover .mermaid-controls,
+  .mermaid-diagram[data-panning] .mermaid-controls,
+  .mermaid-diagram[data-zoomed] .mermaid-controls {
+    opacity: 1;
+  }
+
+  .mermaid-controls button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 3px;
+    background: transparent;
+    color: var(--v2-text-text-muted);
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0;
+  }
+
+  .mermaid-controls button:hover {
+    background: var(--v2-overlay-simple-overlay-hover);
+    color: var(--v2-text-text-base);
+  }
+
+  .mermaid-controls .mermaid-zoom-label {
+    min-width: 32px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 530;
+    color: var(--v2-text-text-muted);
+    user-select: none;
   }
 }
 
