@@ -1,5 +1,5 @@
 import { $ } from "bun"
-import { chmod, copyFile, mkdtemp, rm } from "node:fs/promises"
+import { chmod, copyFile, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
@@ -71,10 +71,23 @@ export function getCurrentCli(target = RUST_TARGET ?? nativeTarget()) {
 
 export async function downloadCliToResources() {
   const cli = getCurrentCli()
-  const directory = await mkdtemp(join(tmpdir(), "opencode-cli-"))
   const dest = windowsify("resources/opencode-cli")
+  if (process.env.SKIP_CLI_DOWNLOAD === "1") {
+    console.log("SKIP_CLI_DOWNLOAD=1, skipping CLI download")
+    return
+  }
+  if (await Bun.file(dest).exists()) {
+    console.log(`${dest} already exists, skipping download`)
+    return
+  }
+  const directory = await mkdtemp(join(tmpdir(), "opencode-cli-"))
   try {
-    await $`bun install --no-save --cwd ${directory} ${`${cli.package}@${CLI_VERSION}`} ${`--os=${cli.os}`} ${`--cpu=${cli.cpu}`}`
+    // bun install --no-save installs to the global cache instead of a local
+    // node_modules when there's no package.json, and the configured npm mirror
+    // may not sync pre-release versions. Write a minimal package.json and force
+    // the official registry so the pre-release CLI binary resolves correctly.
+    await writeFile(join(directory, "package.json"), JSON.stringify({ name: "opencode-cli-tmp", private: true }))
+    await $`npm_config_registry=https://registry.npmjs.org/ bun install --no-save --cwd ${directory} ${`${cli.package}@${CLI_VERSION}`} ${`--os=${cli.os}`} ${`--cpu=${cli.cpu}`}`
     await copyFile(
       join(directory, "node_modules", cli.package, "bin", cli.os === "win32" ? "opencode2.exe" : "opencode2"),
       dest,

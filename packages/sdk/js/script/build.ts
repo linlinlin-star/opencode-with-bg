@@ -49,7 +49,11 @@ await createClient({
   output: {
     path: "./src/v2/gen",
     tsConfigPath: path.join(dir, "tsconfig.json"),
-    clean: true,
+    // clean: false avoids a Windows-only @hey-api/openapi-ts rename bug where
+    // clean wipes client/ and core/ subdirs but the subsequent rename of
+    // *.ts -> *.gen.ts fails with ENOENT, leaving the SDK half-generated.
+    // We only add endpoints, so stale-file risk is negligible.
+    clean: false,
   },
   plugins: [
     {
