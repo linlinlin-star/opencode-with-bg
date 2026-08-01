@@ -80,7 +80,10 @@ export const instanceHandlers = HttpApiBuilder.group(InstanceHttpApi, "instance"
     const getVcsLog = Effect.fn("InstanceHttpApi.vcsLog")(function* (ctx: {
       query: { limit?: string; branch?: string }
     }) {
-      return yield* vcs.log(ctx.query)
+      return yield* vcs.log({
+        ...ctx.query,
+        limit: ctx.query.limit ? Number(ctx.query.limit) : undefined,
+      })
     })
 
     const getVcsCommitDiff = Effect.fn("InstanceHttpApi.vcsCommitDiff")(function* (ctx: {
