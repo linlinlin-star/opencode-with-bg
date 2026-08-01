@@ -57,6 +57,44 @@ export interface PatchOptions {
   readonly maxOutputBytes?: number
 }
 
+export type Branch = {
+  readonly name: string
+  readonly current: boolean
+  readonly kind: "local" | "remote"
+  readonly upstream?: string
+}
+
+export type Commit = {
+  readonly hash: string
+  readonly parents: readonly string[]
+  readonly refs: readonly string[]
+  readonly message: string
+  readonly author: string
+  readonly email: string
+  readonly date: string
+}
+
+export type CommitFileStat = {
+  readonly file: string
+  readonly additions: number
+  readonly deletions: number
+  readonly status: Kind
+}
+
+export interface LogOptions {
+  readonly limit?: number
+  readonly branch?: string
+  readonly all?: boolean
+}
+
+export interface CheckoutOptions {
+  readonly force?: boolean
+}
+
+export type CheckoutResult =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly reason: "dirty" | "not-found" | "error"; readonly message: string }
+
 export interface Result {
   readonly exitCode: number
   readonly text: () => string
@@ -88,6 +126,10 @@ export interface Interface {
   readonly patchUntracked: (cwd: string, file: string, options?: PatchOptions) => Effect.Effect<Patch>
   readonly statUntracked: (cwd: string, file: string) => Effect.Effect<Stat | undefined>
   readonly applyPatch: (cwd: string, patch: string) => Effect.Effect<Result>
+  readonly branchList: (cwd: string) => Effect.Effect<Branch[]>
+  readonly log: (cwd: string, options?: LogOptions) => Effect.Effect<Commit[]>
+  readonly checkout: (cwd: string, branch: string, options?: CheckoutOptions) => Effect.Effect<CheckoutResult>
+  readonly commitDiff: (cwd: string, hash: string) => Effect.Effect<CommitFileStat[]>
 }
 
 const kind = (code: string): Kind => {
@@ -97,6 +139,40 @@ const kind = (code: string): Kind => {
   if (code.includes("D") && !code.includes("A")) return "deleted"
   return "modified"
 }
+
+// for-each-ref uses two-hex-digit byte escapes (%1f), NOT the %x1f syntax that
+// git log --format understands. Using %x1f here emits the literal text "x1f"
+// after the field, which is how branch names picked up trailing control noise.
+const REF_SEP = "\x1f"
+
+const parseBranches = (local: string[], remote: string[], current: string): Branch[] => {
+  const out: Branch[] = []
+  for (const line of local) {
+    const [name, , upstream] = line.split(REF_SEP)
+    if (!name) continue
+    out.push({ name, current: name === current, kind: "local", upstream: upstream || undefined })
+  }
+  for (const line of remote) {
+    const [name] = line.split(REF_SEP)
+    if (!name || name.endsWith("/HEAD")) continue
+    out.push({ name, current: false, kind: "remote" })
+  }
+  return out
+}
+
+const parseLog = (raw: string): Commit[] =>
+  nuls(raw).map((record) => {
+    const [hash, parents, author, email, date, message, refs] = record.split("\x1f")
+    return {
+      hash: hash ?? "",
+      parents: (parents ?? "").split(" ").filter(Boolean),
+      refs: (refs ?? "").split(", ").map((item) => item.trim()).filter(Boolean),
+      message: message ?? "",
+      author: author ?? "",
+      email: email ?? "",
+      date: date ?? "",
+    } satisfies Commit
+  })
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Git") {}
 
@@ -112,7 +188,7 @@ const layer = Layer.effect(
         const result = yield* appProcess.run(
           ChildProcess.make("git", [...cfg, ...args], {
             cwd: opts.cwd,
-            env: opts.env,
+            env: { ...opts.env, LANGUAGE: "en", LC_ALL: "C" },
             extendEnv: true,
             stdin: opts.stdin ?? "ignore",
             stdout: "pipe",
@@ -323,6 +399,100 @@ const layer = Layer.effect(
       return yield* run(["apply", "-"], { cwd, stdin: stdin(patch) })
     })
 
+    const branchList = Effect.fn("Git.branchList")(function* (cwd: string) {
+      const current = out(yield* run(["symbolic-ref", "--quiet", "--short", "HEAD"], { cwd }))
+      // for-each-ref takes two-hex-digit byte escapes (%1f); %x1f is git-log syntax and would leak as literal text.
+      const fmt = `%(refname:short)%1f%(refname)%1f%(upstream:short)`
+      const [local, remote] = yield* Effect.all(
+        [
+          lines(["for-each-ref", `--format=${fmt}`, "refs/heads"], { cwd }),
+          lines(["for-each-ref", `--format=${fmt}`, "refs/remotes"], { cwd }),
+        ],
+        { concurrency: 2 },
+      )
+      return parseBranches(local, remote, current)
+    })
+
+    const log = Effect.fn("Git.log")(function* (cwd: string, options?: LogOptions) {
+      // Fields are %x1f-separated (git log syntax); -z separates records with NUL so subjects with newlines stay intact.
+      const fmt = "%H%x1f%P%x1f%an%x1f%ae%x1f%aI%x1f%s%x1f%D"
+      // With a branch, default to that branch's history only so the graph follows the selection.
+      // Without a branch, use --all to show every branch. all:true/false overrides either default.
+      const useAll = options?.all ?? !options?.branch
+      const raw = yield* text(
+        [
+          "log",
+          `--format=${fmt}`,
+          "-z",
+          `--max-count=${options?.limit ?? 200}`,
+          ...(options?.branch ? [options.branch] : []),
+          ...(useAll ? ["--all"] : []),
+        ],
+        { cwd },
+      )
+      return parseLog(raw)
+    })
+
+    const checkout = Effect.fn("Git.checkout")(
+      function* (cwd: string, branchName: string, options?: CheckoutOptions) {
+        const result = yield* run(
+          ["checkout", ...(options?.force ? ["-f"] : []), "--", branchName],
+          { cwd },
+        )
+        if (result.exitCode === 0) return { ok: true } as const
+        const stderr = result.stderr.toString("utf8")
+        if (/local changes|would be overwritten|stash|need (your|to) commit/i.test(stderr)) {
+          return { ok: false, reason: "dirty", message: stderr } as const
+        }
+        if (/pathspec|did not match|unknown revision|not a valid|ambiguous/i.test(stderr)) {
+          return { ok: false, reason: "not-found", message: stderr } as const
+        }
+        return { ok: false, reason: "error", message: stderr } as const
+      },
+    )
+
+    const commitDiff = Effect.fn("Git.commitDiff")(function* (cwd: string, hash: string) {
+      // --root makes the initial commit show its files; diff-tree avoids the commit message section.
+      const [numstat, nameStatus] = yield* Effect.all(
+        [
+          text(["diff-tree", "-r", "--root", "--numstat", "-z", "--no-commit-id", "--no-renames", hash], { cwd }),
+          text(["diff-tree", "-r", "--root", "--name-status", "-z", "--no-commit-id", "--no-renames", hash], { cwd }),
+        ],
+        { concurrency: 2 },
+      )
+      const stats = new Map<string, { additions: number; deletions: number }>()
+      for (const entry of nuls(numstat)) {
+        const a = entry.indexOf("\t")
+        const b = entry.indexOf("\t", a + 1)
+        if (a === -1 || b === -1) continue
+        const file = entry.slice(b + 1)
+        if (!file) continue
+        const adds = entry.slice(0, a)
+        const dels = entry.slice(a + 1, b)
+        stats.set(file, {
+          additions: adds === "-" ? 0 : Number.parseInt(adds || "0", 10),
+          deletions: dels === "-" ? 0 : Number.parseInt(dels || "0", 10),
+        })
+      }
+      const statuses = nuls(nameStatus)
+      const items: { file: string; code: string }[] = []
+      for (let i = 0; i < statuses.length; i += 2) {
+        const code = statuses[i]
+        const file = statuses[i + 1]
+        if (!code || !file) continue
+        items.push({ file, code })
+      }
+      return items.map((item) => {
+        const stat = stats.get(item.file)
+        return {
+          file: item.file,
+          additions: stat?.additions ?? 0,
+          deletions: stat?.deletions ?? 0,
+          status: kind(item.code),
+        } satisfies CommitFileStat
+      })
+    })
+
     return Service.of({
       run,
       branch,
@@ -339,6 +509,10 @@ const layer = Layer.effect(
       patchUntracked,
       statUntracked,
       applyPatch,
+      branchList,
+      log,
+      checkout,
+      commitDiff,
     })
   }),
 )

@@ -29,12 +29,34 @@ export const VcsDiffQuery = Schema.Struct({
   context: Schema.optional(Schema.NumberFromString.check(Schema.isInt(), Schema.isGreaterThanOrEqualTo(0))),
 })
 
+export const VcsLogQuery = Schema.Struct({
+  ...WorkspaceRoutingQueryFields,
+  limit: Schema.optional(Schema.String),
+  branch: Schema.optional(Schema.String),
+})
+
+export const VcsCommitDiffQuery = Schema.Struct({
+  ...WorkspaceRoutingQueryFields,
+  hash: Schema.String,
+})
+
 export class ApiVcsApplyError extends Schema.ErrorClass<ApiVcsApplyError>("VcsApplyError")(
   {
     name: Schema.Literal("VcsApplyError"),
     data: Schema.Struct({
       message: Schema.String,
       reason: Schema.Literals(["non-git", "not-clean"]),
+    }),
+  },
+  { httpApiStatus: 400 },
+) {}
+
+export class ApiVcsCheckoutError extends Schema.ErrorClass<ApiVcsCheckoutError>("VcsCheckoutError")(
+  {
+    name: Schema.Literal("VcsCheckoutError"),
+    data: Schema.Struct({
+      message: Schema.String,
+      reason: Schema.Literals(["dirty", "not-found", "non-git", "error"]),
     }),
   },
   { httpApiStatus: 400 },
@@ -48,6 +70,10 @@ export const InstancePaths = {
   vcsDiff: "/vcs/diff",
   vcsDiffRaw: "/vcs/diff/raw",
   vcsApply: "/vcs/apply",
+  vcsBranches: "/vcs/branches",
+  vcsLog: "/vcs/log",
+  vcsCheckout: "/vcs/checkout",
+  vcsCommitDiff: "/vcs/commit/diff",
   command: "/command",
   agent: "/agent",
   skill: "/skill",
@@ -134,6 +160,48 @@ export const InstanceApi = HttpApi.make("instance")
             identifier: "vcs.apply",
             summary: "Apply VCS patch",
             description: "Apply a raw patch to the current working tree.",
+          }),
+        ),
+        HttpApiEndpoint.get("vcsBranches", InstancePaths.vcsBranches, {
+          query: WorkspaceRoutingQuery,
+          success: described(Schema.Array(Vcs.Branch), "VCS branches"),
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "vcs.branches",
+            summary: "List VCS branches",
+            description: "Retrieve local and remote branches for the current repository.",
+          }),
+        ),
+        HttpApiEndpoint.get("vcsLog", InstancePaths.vcsLog, {
+          query: VcsLogQuery,
+          success: described(Schema.Array(Vcs.Commit), "VCS commit log"),
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "vcs.log",
+            summary: "Get VCS commit log",
+            description: "Retrieve commit history, optionally filtered to a branch.",
+          }),
+        ),
+        HttpApiEndpoint.get("vcsCommitDiff", InstancePaths.vcsCommitDiff, {
+          query: VcsCommitDiffQuery,
+          success: described(Schema.Array(Vcs.CommitFileDiff), "VCS commit file diff"),
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "vcs.commit.diff",
+            summary: "Get VCS commit diff",
+            description: "Retrieve the file changes introduced by a single commit.",
+          }),
+        ),
+        HttpApiEndpoint.post("vcsCheckout", InstancePaths.vcsCheckout, {
+          query: WorkspaceRoutingQuery,
+          payload: Vcs.CheckoutInput,
+          success: described(Schema.Boolean, "VCS branch checked out"),
+          error: ApiVcsCheckoutError,
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "vcs.checkout",
+            summary: "Checkout VCS branch",
+            description: "Switch the working tree to the requested branch. Use force to discard local changes.",
           }),
         ),
         HttpApiEndpoint.get("command", InstancePaths.command, {

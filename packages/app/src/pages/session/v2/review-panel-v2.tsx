@@ -52,6 +52,7 @@ export type ReviewPanelV2Props = {
   comments?: SessionReviewComment[]
   focusedComment?: SessionReviewFocus | null
   onFocusedCommentChange?: (focus: SessionReviewFocus | null) => void
+  footer?: JSX.Element
 }
 
 export function ReviewPanelV2(props: ReviewPanelV2Props) {
@@ -128,6 +129,7 @@ export function ReviewPanelV2(props: ReviewPanelV2Props) {
           searching={searching}
           kinds={treeKinds}
           activeDiff={activeDiff}
+          footer={props.footer}
         />
       }
       activeFile={activeDiff()}
@@ -178,6 +180,7 @@ function ReviewPanelV2Sidebar(props: {
   searching: () => boolean
   kinds: () => ReturnType<typeof reviewDiffKinds>
   activeDiff: () => string | undefined
+  footer?: JSX.Element
 }) {
   const language = useLanguage()
   const [explicitHighlight, setExplicitHighlight] = createSignal<string | undefined>()
@@ -211,6 +214,7 @@ function ReviewPanelV2Sidebar(props: {
       onWidthChange={props.state.resizeSidebar}
       minWidth={SESSION_REVIEW_V2_SIDEBAR_WIDTH_MIN}
       maxWidth={SESSION_REVIEW_V2_SIDEBAR_WIDTH_MAX}
+      footer={props.footer}
     >
       <Show
         when={props.diffsReady()}

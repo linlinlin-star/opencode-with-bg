@@ -26,6 +26,8 @@
 .git-graph-panel {
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
+  border-top: 1px solid var(--v2-border-border-weak, transparent);
   background: var(--v2-background-bg-base, transparent);
   transition: height 0.2s cubic-bezier(0.22, 1, 0.36, 1);
   contain: layout style;

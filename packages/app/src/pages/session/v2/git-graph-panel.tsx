@@ -6,6 +6,7 @@ import { ButtonV2 } from "@opencode-ai/ui/v2/button-v2"
 import { Icon } from "@opencode-ai/ui/v2/icon"
 import { Popover } from "@opencode-ai/ui/popover"
 import { ResizeHandle } from "@opencode-ai/ui/resize-handle"
+import { useFile } from "@/context/file"
 import { useLanguage } from "@/context/language"
 import { useSDK } from "@/context/sdk"
 import { showToast } from "@/utils/toast"
@@ -45,6 +46,7 @@ function loadHeight(): number {
 export function GitGraphPanel(props: GitGraphPanelProps): JSX.Element {
   const language = useLanguage()
   const sdk = useSDK()
+  const file = useFile()
   const dialog = useDialog()
   const queryClient = useQueryClient()
   const size = createSizing()
@@ -98,7 +100,7 @@ export function GitGraphPanel(props: GitGraphPanelProps): JSX.Element {
     queryFn: async () => {
       const hash = selectedHash()
       if (!hash) return [] as readonly CommitFileDiff[]
-      const result = await sdk().client.vcs.commit.diff({ hash, directory: props.directory })
+      const result = await sdk().client.vcs.commitDiff({ hash, directory: props.directory })
       return (result.data ?? []) as readonly CommitFileDiff[]
     },
   }))
@@ -123,8 +125,13 @@ export function GitGraphPanel(props: GitGraphPanelProps): JSX.Element {
       { branch, force: false },
       {
         onError: (error: unknown) => {
-          if (extractCheckoutReason(error) !== "dirty") {
-            showToast({ variant: "error", title: language.t("session.gitGraph.checkoutError") })
+          const detail = extractCheckoutError(error)
+          if (detail.reason !== "dirty") {
+            showToast({
+              variant: "error",
+              title: language.t("session.gitGraph.checkoutError"),
+              description: detail.message,
+            })
             return
           }
           dialog.show(() => (
@@ -136,11 +143,17 @@ export function GitGraphPanel(props: GitGraphPanelProps): JSX.Element {
                 checkoutMutation.mutate(
                   { branch, force: true },
                   {
-                    onError: () => {
-                      showToast({ variant: "error", title: language.t("session.gitGraph.checkoutError") })
+                    onError: (error: unknown) => {
+                      const detail = extractCheckoutError(error)
+                      showToast({
+                        variant: "error",
+                        title: language.t("session.gitGraph.checkoutError"),
+                        description: detail.message,
+                      })
                     },
                     onSuccess: () => {
                       setSelectedBranch(branch)
+                      file.tree.refreshAll()
                       showToast({ variant: "success", title: language.t("session.gitGraph.branchSwitched") })
                     },
                   },
@@ -151,6 +164,7 @@ export function GitGraphPanel(props: GitGraphPanelProps): JSX.Element {
         },
         onSuccess: () => {
           setSelectedBranch(branch)
+          file.tree.refreshAll()
           showToast({ variant: "success", title: language.t("session.gitGraph.branchSwitched") })
         },
       },
@@ -352,10 +366,10 @@ function DirtyWorkspaceDialog(props: { branch: string; onCancel: () => void; onC
   )
 }
 
-function extractCheckoutReason(error: unknown): string | undefined {
-  if (!(error instanceof Error)) return undefined
-  const cause = (error as { cause?: { body?: { data?: { reason?: string } } } }).cause
-  return cause?.body?.data?.reason
+function extractCheckoutError(error: unknown): { reason?: string; message?: string } {
+  if (!(error instanceof Error)) return {}
+  const data = (error as { cause?: { body?: { data?: { reason?: string; message?: string } } } }).cause?.body?.data
+  return { reason: data?.reason, message: data?.message }
 }
 
 function fileStatusLetter(status: "added" | "deleted" | "modified" | undefined): string {

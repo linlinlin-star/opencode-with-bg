@@ -9,7 +9,7 @@ import { Skill } from "@/skill"
 import { Effect } from "effect"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { InstanceHttpApi } from "../api"
-import { ApiVcsApplyError } from "../groups/instance"
+import { ApiVcsApplyError, ApiVcsCheckoutError } from "../groups/instance"
 import { markInstanceForDisposal } from "../lifecycle"
 
 export const instanceHandlers = HttpApiBuilder.group(InstanceHttpApi, "instance", (handlers) =>
@@ -73,6 +73,40 @@ export const instanceHandlers = HttpApiBuilder.group(InstanceHttpApi, "instance"
       )
     })
 
+    const getVcsBranches = Effect.fn("InstanceHttpApi.vcsBranches")(function* () {
+      return yield* vcs.branches()
+    })
+
+    const getVcsLog = Effect.fn("InstanceHttpApi.vcsLog")(function* (ctx: {
+      query: { limit?: string; branch?: string }
+    }) {
+      return yield* vcs.log(ctx.query)
+    })
+
+    const getVcsCommitDiff = Effect.fn("InstanceHttpApi.vcsCommitDiff")(function* (ctx: {
+      query: { hash: string }
+    }) {
+      return yield* vcs.commitDiff(ctx.query.hash)
+    })
+
+    const checkoutVcs = Effect.fn("InstanceHttpApi.vcsCheckout")(function* (ctx: {
+      payload: Vcs.CheckoutInput
+    }) {
+      return yield* vcs.checkout(ctx.payload).pipe(
+        Effect.mapError(
+          (error) =>
+            new ApiVcsCheckoutError({
+              name: "VcsCheckoutError",
+              data: {
+                message: error.message,
+                reason: error.reason,
+              },
+            }),
+        ),
+        Effect.map(() => true),
+      )
+    })
+
     const getCommand = Effect.fn("InstanceHttpApi.command")(function* () {
       return yield* command.list()
     })
@@ -101,6 +135,10 @@ export const instanceHandlers = HttpApiBuilder.group(InstanceHttpApi, "instance"
       .handle("vcsDiff", getVcsDiff)
       .handle("vcsDiffRaw", getVcsDiffRaw)
       .handle("vcsApply", applyVcs)
+      .handle("vcsBranches", getVcsBranches)
+      .handle("vcsLog", getVcsLog)
+      .handle("vcsCommitDiff", getVcsCommitDiff)
+      .handle("vcsCheckout", checkoutVcs)
       .handle("command", getCommand)
       .handle("agent", getAgent)
       .handle("skill", getSkill)

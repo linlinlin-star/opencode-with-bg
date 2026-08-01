@@ -273,6 +273,42 @@ export const ApplyResult = Schema.Struct({
 })
 export type ApplyResult = Schema.Schema.Type<typeof ApplyResult>
 
+export const Branch = Schema.Struct({
+  name: Schema.String,
+  current: Schema.Boolean,
+  kind: Schema.Literals(["local", "remote"]),
+}).annotate({ identifier: "VcsBranch" })
+export type Branch = Schema.Schema.Type<typeof Branch>
+
+export const Commit = Schema.Struct({
+  hash: Schema.String,
+  parents: Schema.Array(Schema.String),
+  refs: Schema.Array(Schema.String),
+  message: Schema.String,
+  author: Schema.String,
+  date: Schema.String,
+}).annotate({ identifier: "VcsCommit" })
+export type Commit = Schema.Schema.Type<typeof Commit>
+
+export const CommitFileDiff = Schema.Struct({
+  file: Schema.String,
+  additions: Schema.Finite,
+  deletions: Schema.Finite,
+  status: Schema.Literals(["added", "deleted", "modified"]),
+}).annotate({ identifier: "VcsCommitFileDiff" })
+export type CommitFileDiff = Schema.Schema.Type<typeof CommitFileDiff>
+
+export const CheckoutInput = Schema.Struct({
+  branch: Schema.String,
+  force: Schema.Boolean,
+})
+export type CheckoutInput = Schema.Schema.Type<typeof CheckoutInput>
+
+export class CheckoutError extends Schema.TaggedErrorClass<CheckoutError>()("VcsCheckoutError", {
+  message: Schema.String,
+  reason: Schema.Literals(["dirty", "not-found", "non-git"]),
+}) {}
+
 export class PatchApplyError extends Schema.TaggedErrorClass<PatchApplyError>()("VcsPatchApplyError", {
   message: Schema.String,
   reason: Schema.Literals(["non-git", "not-clean"]),
@@ -286,6 +322,10 @@ export interface Interface {
   readonly diff: (mode: Mode, options?: DiffOptions) => Effect.Effect<FileDiff[]>
   readonly diffRaw: () => Effect.Effect<string>
   readonly apply: (input: ApplyInput) => Effect.Effect<ApplyResult, PatchApplyError>
+  readonly branches: () => Effect.Effect<Branch[]>
+  readonly log: (options?: { limit?: number; branch?: string }) => Effect.Effect<Commit[]>
+  readonly commitDiff: (hash: string) => Effect.Effect<CommitFileDiff[]>
+  readonly checkout: (input: CheckoutInput) => Effect.Effect<void, CheckoutError>
 }
 
 interface State {
@@ -413,6 +453,38 @@ const layer: Layer.Layer<Service, never, Git.Service | EventV2Bridge.Service> = 
           })
         }
         return { applied: true }
+      }),
+      branches: Effect.fn("Vcs.branches")(function* () {
+        const ctx = yield* InstanceState.context
+        if (ctx.project.vcs !== "git") return []
+        return yield* git.branchList(ctx.directory)
+      }),
+      log: Effect.fn("Vcs.log")(function* (options?: { limit?: number; branch?: string }) {
+        const ctx = yield* InstanceState.context
+        if (ctx.project.vcs !== "git") return []
+        return yield* git.log(ctx.directory, options)
+      }),
+      commitDiff: Effect.fn("Vcs.commitDiff")(function* (hash: string) {
+        const ctx = yield* InstanceState.context
+        if (ctx.project.vcs !== "git") return []
+        return yield* git.commitDiff(ctx.directory, hash)
+      }),
+      checkout: Effect.fn("Vcs.checkout")(function* (input: CheckoutInput) {
+        const ctx = yield* InstanceState.context
+        if (ctx.project.vcs !== "git") {
+          return yield* new CheckoutError({
+            message: "Cannot checkout because the project is not git-based",
+            reason: "non-git",
+          })
+        }
+        const result = yield* git.checkout(ctx.directory, input.branch, { force: input.force })
+        if (!result.ok) {
+          const reason = result.reason === "not-found" ? "not-found" : "dirty"
+          return yield* new CheckoutError({
+            message: result.message,
+            reason,
+          })
+        }
       }),
     })
   }),
