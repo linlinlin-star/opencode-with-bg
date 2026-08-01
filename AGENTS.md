@@ -18,6 +18,8 @@ Valid types are `feat`, `fix`, `docs`, `chore`, `refactor`, and `test`. Scopes a
 
 Examples: `fix(tui): simplify thinking toggle styling`, `docs: update contributing guide`, `chore(sdk): regenerate types`.
 
+Commit messages and PR descriptions must be written in English.
+
 ## Style Guide
 
 ### General Principles
