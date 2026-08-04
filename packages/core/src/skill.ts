@@ -42,6 +42,7 @@ export type Data = {
 
 export type Draft = {
   source: (source: Source) => void
+  remove: (source: Source) => void
   list: () => readonly Source[]
 }
 
@@ -64,6 +65,10 @@ const layer = Layer.effect(
         source: (source) => {
           if (draft.sources.some((item) => Source.equals(item, source))) return
           draft.sources.push(source as Types.DeepMutable<Source>)
+        },
+        remove: (source) => {
+          const index = draft.sources.findIndex((item) => Source.equals(item, source))
+          if (index !== -1) draft.sources.splice(index, 1)
         },
         list: () => draft.sources as Source[],
       }),

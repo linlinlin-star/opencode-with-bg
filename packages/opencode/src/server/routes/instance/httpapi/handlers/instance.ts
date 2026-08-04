@@ -6,10 +6,16 @@ import { Global } from "@opencode-ai/core/global"
 import { LSP } from "@/lsp/lsp"
 import { Vcs } from "@/project/vcs"
 import { Skill } from "@/skill"
+import { Instruction } from "@/session/instruction"
+import { UserRule } from "@/user-rules"
 import { Effect } from "effect"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { InstanceHttpApi } from "../api"
-import { ApiVcsApplyError, ApiVcsCheckoutError } from "../groups/instance"
+import {
+  ApiUserRuleNotFoundError,
+  ApiVcsApplyError,
+  ApiVcsCheckoutError,
+} from "../groups/instance"
 import { markInstanceForDisposal } from "../lifecycle"
 
 export const instanceHandlers = HttpApiBuilder.group(InstanceHttpApi, "instance", (handlers) =>
@@ -19,6 +25,8 @@ export const instanceHandlers = HttpApiBuilder.group(InstanceHttpApi, "instance"
     const format = yield* Format.Service
     const lsp = yield* LSP.Service
     const skill = yield* Skill.Service
+    const instruction = yield* Instruction.Service
+    const userRule = yield* UserRule.Service
     const vcs = yield* Vcs.Service
 
     const dispose = Effect.fn("InstanceHttpApi.dispose")(function* () {
@@ -122,6 +130,40 @@ export const instanceHandlers = HttpApiBuilder.group(InstanceHttpApi, "instance"
       return yield* skill.all()
     })
 
+    const getRules = Effect.fn("InstanceHttpApi.rule")(function* () {
+      const files = yield* instruction.files().pipe(Effect.orDie)
+      return files.map(({ filepath, content }) => ({ path: filepath, content }))
+    })
+
+    const listUserRules = Effect.fn("InstanceHttpApi.ruleUserList")(function* () {
+      return yield* userRule.list()
+    })
+
+    const createUserRule = Effect.fn("InstanceHttpApi.ruleUserCreate")(function* (ctx: {
+      payload: UserRule.Create
+    }) {
+      return yield* userRule.create(ctx.payload)
+    })
+
+    const updateUserRule = Effect.fn("InstanceHttpApi.ruleUserUpdate")(function* (ctx: {
+      params: { id: string }
+      payload: UserRule.Update
+    }) {
+      return yield* userRule.update(ctx.params.id, ctx.payload).pipe(
+        Effect.mapError(
+          () => new ApiUserRuleNotFoundError({ name: "UserRuleNotFoundError", data: { message: "User rule not found" } }),
+        ),
+      )
+    })
+
+    const removeUserRule = Effect.fn("InstanceHttpApi.ruleUserRemove")(function* (ctx: { params: { id: string } }) {
+      yield* userRule.remove(ctx.params.id).pipe(
+        Effect.mapError(
+          () => new ApiUserRuleNotFoundError({ name: "UserRuleNotFoundError", data: { message: "User rule not found" } }),
+        ),
+      )
+    })
+
     const getLsp = Effect.fn("InstanceHttpApi.lsp")(function* () {
       return yield* lsp.status()
     })
@@ -145,6 +187,11 @@ export const instanceHandlers = HttpApiBuilder.group(InstanceHttpApi, "instance"
       .handle("command", getCommand)
       .handle("agent", getAgent)
       .handle("skill", getSkill)
+      .handle("rule", getRules)
+      .handle("ruleUserList", listUserRules)
+      .handle("ruleUserCreate", createUserRule)
+      .handle("ruleUserUpdate", updateUserRule)
+      .handle("ruleUserRemove", removeUserRule)
       .handle("lsp", getLsp)
       .handle("formatter", getFormatter)
   }),

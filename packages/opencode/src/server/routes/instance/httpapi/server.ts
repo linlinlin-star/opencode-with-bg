@@ -47,6 +47,7 @@ import { Snapshot } from "@/snapshot"
 import { Storage } from "@/storage/storage"
 import { ToolRegistry } from "@/tool/registry"
 import { Truncate } from "@/tool/truncate"
+import { UserRule } from "@/user-rules"
 import { Worktree } from "@/worktree"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { MoveSession } from "@opencode-ai/core/control-plane/move-session"
@@ -245,6 +246,7 @@ const app = LayerNode.group([
   SessionSummary.node,
   SessionPrompt.node,
   Instruction.node,
+  UserRule.node,
   LLM.node,
   LSP.node,
   MCP.node,

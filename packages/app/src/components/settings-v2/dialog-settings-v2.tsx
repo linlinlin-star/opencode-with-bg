@@ -8,6 +8,8 @@ import { SettingsGeneralV2 } from "./general"
 import { SettingsKeybinds } from "../settings-keybinds"
 import { SettingsProvidersV2 } from "./providers"
 import { SettingsModelsV2 } from "./models"
+import { SettingsRulesV2 } from "./rules"
+import { SettingsProfileV2 } from "./profile"
 import "./settings-v2.css"
 import { SettingsServersV2 } from "./servers"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
@@ -83,6 +85,10 @@ export const DialogSettings: Component<{
                       <Icon name="models" />
                       {language.t("settings.models.title")}
                     </TabsV2.Trigger>
+                    <TabsV2.Trigger value="rules">
+                      <Icon name="bullet-list" />
+                      {language.t("settings.tab.rules")}
+                    </TabsV2.Trigger>
                   </div>
                 </div>
               </div>
@@ -107,6 +113,12 @@ export const DialogSettings: Component<{
         </TabsV2.Content>
         <TabsV2.Content value="models" class="settings-v2-panel">
           <SettingsModelsV2 />
+        </TabsV2.Content>
+        <TabsV2.Content value="rules" class="settings-v2-panel">
+          <SettingsRulesV2 directory={directory()} />
+          <div class="settings-v2-profile-wrapper">
+            <SettingsProfileV2 sessionID={props.sessionID} />
+          </div>
         </TabsV2.Content>
       </TabsV2>
     </Dialog>

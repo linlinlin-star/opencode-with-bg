@@ -14,10 +14,16 @@ import { Skill } from "./skill"
  * invariant that lets Profile participation be opt-in without affecting
  * existing sessions.
  *
+ * Skill source mode:
+ *   - `"inherit"` (default) → skills from the global `.opencode` directory are
+ *     inherited alongside the project's `.opencode` skills.
+ *   - `"deny"`               → only the current project's `.opencode` skills
+ *     are used; global `.opencode` skills are excluded.
+ *
  * Selection semantics:
  *   - `undefined` selection  → all candidates permitted (current behavior)
  *   - `enable` non-empty     → only matched candidates permitted (allow-list)
- *   - `disable`              → matched candidates excluded (deny-list)
+ *   - `disable`              → excluded candidates (deny-list)
  *   - `enable` ∩ `disable`   → `disable` wins
  *
  * Both lists accept wildcard patterns (`*`, `?`) matched via `Wildcard.match`.
@@ -31,6 +37,7 @@ export const Selection = Schema.Struct({
 
 export interface Skills extends Schema.Schema.Type<typeof Skills> {}
 export const Skills = Schema.Struct({
+  mode: Schema.Literals(["inherit", "deny"]).pipe(optional),
   // Additional Skill sources (concatenated with global/project sources).
   sources: Schema.Array(Skill.Source).pipe(optional),
   selection: Selection.pipe(optional),

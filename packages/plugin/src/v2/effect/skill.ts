@@ -3,6 +3,7 @@ import type { Hooks } from "./registration.js"
 
 export interface SkillDraft {
   source(source: SkillV2Source): void
+  remove(source: SkillV2Source): void
   list(): readonly SkillV2Source[]
 }
 

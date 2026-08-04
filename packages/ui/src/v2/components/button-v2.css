@@ -22,6 +22,10 @@
   user-select: none;
   cursor: pointer;
   outline: none;
+  transition:
+    background-color 0.12s ease-out,
+    background-image 0.12s ease-out,
+    color 0.12s ease-out;
 }
 
 [data-component="button-v2"]:focus {

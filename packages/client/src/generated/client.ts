@@ -15,6 +15,12 @@ import type {
   SessionsSwitchAgentOutput,
   SessionsSwitchModelInput,
   SessionsSwitchModelOutput,
+  SessionsProfileInput,
+  SessionsProfileOutput,
+  SessionsSetInput,
+  SessionsSetOutput,
+  SessionsResetInput,
+  SessionsResetOutput,
   SessionsPromptInput,
   SessionsPromptOutput,
   SessionsCompactInput,
@@ -363,6 +369,40 @@ export function make(options: ClientOptions) {
             body: { model: input["model"] },
             successStatus: 204,
             declaredStatuses: [404, 400, 401],
+            empty: true,
+          },
+          requestOptions,
+        ),
+      profile: (input: SessionsProfileInput, requestOptions?: RequestOptions) =>
+        request<{ readonly data: SessionsProfileOutput }>(
+          {
+            method: "GET",
+            path: `/api/session/${encodeURIComponent(input.sessionID)}/profile`,
+            successStatus: 200,
+            declaredStatuses: [404, 500, 400, 401],
+            empty: false,
+          },
+          requestOptions,
+        ).then((value) => value.data),
+      set: (input: SessionsSetInput, requestOptions?: RequestOptions) =>
+        request<SessionsSetOutput>(
+          {
+            method: "POST",
+            path: `/api/session/${encodeURIComponent(input.sessionID)}/profile/set`,
+            body: { profile: input["profile"] },
+            successStatus: 204,
+            declaredStatuses: [404, 500, 400, 401],
+            empty: true,
+          },
+          requestOptions,
+        ),
+      reset: (input: SessionsResetInput, requestOptions?: RequestOptions) =>
+        request<SessionsResetOutput>(
+          {
+            method: "POST",
+            path: `/api/session/${encodeURIComponent(input.sessionID)}/profile/reset`,
+            successStatus: 204,
+            declaredStatuses: [404, 500, 400, 401],
             empty: true,
           },
           requestOptions,

@@ -1,10 +1,38 @@
 /* [data-component="dialog-trigger"] { } */
 
+@keyframes dialog-overlay-show {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-container-show {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes dialog-overlay-show {
+    from {
+      opacity: 1;
+    }
+  }
+  @keyframes dialog-container-show {
+    from {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
 [data-component="dialog-overlay"] {
   position: fixed;
   inset: 0;
   z-index: 50;
   background-color: var(--v2-overlay-simple-overlay-scrim);
+  animation: dialog-overlay-show 0.15s ease-out;
 }
 
 [data-component="dialog-v2"] {
@@ -27,6 +55,7 @@
     border-radius: 6px;
     overflow: hidden;
     pointer-events: auto;
+    animation: dialog-container-show 0.15s ease-out;
 
     [data-slot="dialog-content"] {
       display: flex;

@@ -176,6 +176,16 @@ import type {
   QuestionReplyErrors,
   QuestionReplyResponses,
   QuestionV2Reply,
+  RuleFilesErrors,
+  RuleFilesResponses,
+  RuleUserCreateErrors,
+  RuleUserCreateResponses,
+  RuleUserListErrors,
+  RuleUserListResponses,
+  RuleUserRemoveErrors,
+  RuleUserRemoveResponses,
+  RuleUserUpdateErrors,
+  RuleUserUpdateResponses,
   SessionAbortErrors,
   SessionAbortResponses,
   SessionChildrenErrors,
@@ -2335,6 +2345,189 @@ export class Command extends HeyApiClient {
       ...options,
       ...params,
     })
+  }
+}
+
+export class User extends HeyApiClient {
+  /**
+   * List user rules
+   *
+   * List the user-level personal rule entries with their enabled state.
+   */
+  public list<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<RuleUserListResponses, RuleUserListErrors, ThrowOnError>({
+      url: "/rule/user",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Create a user rule
+   *
+   * Create a new user-level personal rule. New rules are enabled by default.
+   */
+  public create<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+      name?: string
+      content?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "name" },
+            { in: "body", key: "content" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<RuleUserCreateResponses, RuleUserCreateErrors, ThrowOnError>({
+      url: "/rule/user",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Remove a user rule
+   *
+   * Delete a user-level personal rule permanently.
+   */
+  public remove<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "id" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).delete<RuleUserRemoveResponses, RuleUserRemoveErrors, ThrowOnError>({
+      url: "/rule/user/{id}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Update a user rule
+   *
+   * Update the name, content, or enabled state of a user-level personal rule.
+   */
+  public update<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string
+      directory?: string
+      workspace?: string
+      name?: string
+      content?: string
+      enabled?: boolean
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "id" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "name" },
+            { in: "body", key: "content" },
+            { in: "body", key: "enabled" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).patch<RuleUserUpdateResponses, RuleUserUpdateErrors, ThrowOnError>({
+      url: "/rule/user/{id}",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
+export class Rule extends HeyApiClient {
+  /**
+   * List effective rules
+   *
+   * List AGENTS.md and configured instruction files that apply to the current workspace, with their contents.
+   */
+  public files<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<RuleFilesResponses, RuleFilesErrors, ThrowOnError>({
+      url: "/rule",
+      ...options,
+      ...params,
+    })
+  }
+
+  private _user?: User
+  get user(): User {
+    return (this._user ??= new User({ client: this.client }))
   }
 }
 
@@ -7386,6 +7579,11 @@ export class OpencodeClient extends HeyApiClient {
   private _command?: Command
   get command(): Command {
     return (this._command ??= new Command({ client: this.client }))
+  }
+
+  private _rule?: Rule
+  get rule(): Rule {
+    return (this._rule ??= new Rule({ client: this.client }))
   }
 
   private _lsp?: Lsp

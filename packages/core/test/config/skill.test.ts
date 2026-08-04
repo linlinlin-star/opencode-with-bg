@@ -24,6 +24,10 @@ describe("ConfigSkillPlugin.Plugin", () => {
           source: (source) => {
             sources.push(source)
           },
+          remove: (source) => {
+            const index = sources.findIndex((item) => SkillV2.Source.equals(item, source))
+            if (index !== -1) sources.splice(index, 1)
+          },
           list: () => sources,
         })
         if (Effect.isEffect(result)) yield* result

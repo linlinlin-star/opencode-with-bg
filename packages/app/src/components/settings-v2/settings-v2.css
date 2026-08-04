@@ -1,8 +1,20 @@
 @import "@opencode-ai/ui/v2/text-input-v2.css";
 @import "@opencode-ai/ui/v2/button-v2.css";
 
+@keyframes settings-v2-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 [data-component="tabs-v2"][data-variant="settings"] {
   height: 100%;
+  animation: settings-v2-in 0.2s ease-out;
 }
 
 [data-component="dialog-v2"][data-variant="settings"] [data-slot="dialog-container"] {
@@ -58,6 +70,7 @@
   color: var(--v2-text-text-accent);
   cursor: pointer;
   text-decoration: none;
+  transition: color 0.12s ease-out;
 }
 
 [data-slot="settings-v2-row-description"] a.settings-v2-link:hover {
@@ -68,6 +81,8 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 180px;
 }
 
 .settings-v2-section-title {
@@ -312,6 +327,7 @@
   color: var(--v2-text-text-accent);
   cursor: pointer;
   text-align: left;
+  transition: color 0.12s ease-out;
 }
 
 .settings-v2-providers-view-all:hover {
@@ -400,6 +416,9 @@
   border-radius: 4px;
   background: transparent;
   color: var(--v2-text-text-base);
+  transition:
+    background-color 0.12s ease-out,
+    color 0.12s ease-out;
 }
 
 .settings-v2-models-group-trigger:focus-visible {
@@ -552,6 +571,9 @@
     "lnum" on;
   font-variation-settings: "slnt" 0;
   color: var(--v2-text-text-faint);
+  transition:
+    background-color 0.12s ease-out,
+    color 0.12s ease-out;
 }
 
 .settings-v2-keybind-button:hover {
@@ -734,4 +756,224 @@
   font-weight: 440;
   line-height: 1;
   color: var(--v2-state-fg-danger);
+}
+
+.settings-v2-rule-file {
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 0.5px var(--v2-border-border-muted);
+  background: var(--v2-background-bg-layer-01);
+  overflow: hidden;
+}
+
+.settings-v2-rule-summary {
+  padding: 10px 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--v2-text-text-base);
+  cursor: pointer;
+  word-break: break-all;
+  list-style: none;
+  transition: background-color 0.12s ease-out;
+}
+
+.settings-v2-rule-summary:hover {
+  background-color: var(--v2-background-bg-layer-02);
+}
+
+.settings-v2-rule-summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-v2-rule-summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 6px;
+  color: var(--v2-text-text-muted);
+  transition: transform 0.15s ease;
+  font-size: 10px;
+}
+
+.settings-v2-rule-file[open] .settings-v2-rule-summary::before {
+  transform: rotate(90deg);
+}
+
+.settings-v2-rule-content {
+  margin: 0;
+  padding: 10px 14px 12px;
+  max-height: 240px;
+  overflow: auto;
+  border-top: 0.5px solid var(--v2-border-border-base);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--v2-text-text-secondary);
+  user-select: text;
+}
+
+.settings-v2-rules-card {
+  padding: 14px 16px;
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 0.5px var(--v2-border-border-muted);
+  background: var(--v2-background-bg-base);
+}
+
+.settings-v2-rules-card + .settings-v2-rules-card {
+  margin-top: 14px;
+}
+
+.settings-v2-profile-wrapper {
+  padding: 0 40px 40px;
+  border-top: 0.5px solid var(--v2-border-border-base);
+  margin-top: 8px;
+}
+
+.settings-v2-profile-wrapper > .settings-v2-rules-card {
+  margin-top: 28px;
+}
+
+.settings-v2-rules-card .settings-v2-section-title {
+  padding-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--v2-text-text-secondary);
+}
+
+.settings-v2-rules-card .settings-v2-section + .settings-v2-section {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 0.5px solid var(--v2-border-border-muted);
+}
+
+.settings-v2-rules-card .settings-v2-section-title + [data-component="settings-v2-list"] {
+  margin-top: -2px;
+}
+
+.settings-v2-profile-hint {
+  margin: 0;
+  padding: 8px 0 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--v2-text-text-muted);
+}
+
+.settings-v2-rules-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.settings-v2-rules-card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--v2-text-text-base);
+}
+
+.settings-v2-rules-help {
+  width: 14px;
+  height: 14px;
+  color: var(--v2-text-text-muted);
+}
+
+.settings-v2-skill-row-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-v2-user-rule-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.settings-v2-user-rule-row + .settings-v2-user-rule-row {
+  border-top: 0.5px solid var(--v2-border-border-muted);
+}
+
+.settings-v2-user-rule-name {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--v2-text-text-base);
+  word-break: break-all;
+}
+
+.settings-v2-user-rule-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-v2-user-rule-preview {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--v2-text-text-secondary);
+  cursor: pointer;
+  word-break: break-all;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  list-style: none;
+  transition: background-color 0.12s ease-out;
+}
+
+.settings-v2-user-rule-preview:hover {
+  background-color: var(--v2-background-bg-layer-02);
+}
+
+.settings-v2-user-rule-preview::-webkit-details-marker {
+  display: none;
+}
+
+.settings-v2-user-rule-preview::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 6px;
+  color: var(--v2-text-text-muted);
+  transition: transform 0.15s ease;
+  font-size: 10px;
+}
+
+.settings-v2-user-rule-details[open] .settings-v2-user-rule-preview::before {
+  transform: rotate(90deg);
+}
+
+.settings-v2-user-rule-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 0.5px solid var(--v2-border-border-base);
+}
+
+.settings-v2-user-rule-form-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-v2-user-rule-name-input {
+  flex: 1;
+}
+
+[data-component="textarea-v2"].settings-v2-user-rule-content-input {
+  width: 100%;
+  min-height: 112px;
+  align-self: stretch;
+}
+
+.settings-v2-skill-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }

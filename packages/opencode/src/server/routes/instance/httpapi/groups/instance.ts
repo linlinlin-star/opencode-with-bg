@@ -4,6 +4,7 @@ import { Format } from "@/format"
 import { LSP } from "@/lsp/lsp"
 import { Vcs } from "@/project/vcs"
 import { Skill } from "@/skill"
+import { UserRule } from "@/user-rules"
 import { Schema } from "effect"
 import { HttpApi, HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/unstable/httpapi"
 import { Authorization } from "../middleware/authorization"
@@ -22,6 +23,11 @@ const PathInfo = Schema.Struct({
   worktree: Schema.String,
   directory: Schema.String,
 }).annotate({ identifier: "Path" })
+
+const RuleFile = Schema.Struct({
+  path: Schema.String,
+  content: Schema.String,
+}).annotate({ identifier: "RuleFile" })
 
 export const VcsDiffQuery = Schema.Struct({
   ...WorkspaceRoutingQueryFields,
@@ -62,6 +68,16 @@ export class ApiVcsCheckoutError extends Schema.ErrorClass<ApiVcsCheckoutError>(
   { httpApiStatus: 400 },
 ) {}
 
+export class ApiUserRuleNotFoundError extends Schema.ErrorClass<ApiUserRuleNotFoundError>("UserRuleNotFoundError")(
+  {
+    name: Schema.Literal("UserRuleNotFoundError"),
+    data: Schema.Struct({
+      message: Schema.String,
+    }),
+  },
+  { httpApiStatus: 404 },
+) {}
+
 export const InstancePaths = {
   dispose: "/instance/dispose",
   path: "/path",
@@ -77,6 +93,9 @@ export const InstancePaths = {
   command: "/command",
   agent: "/agent",
   skill: "/skill",
+  rule: "/rule",
+  ruleUser: "/rule/user",
+  ruleUserItem: "/rule/user/:id",
   lsp: "/lsp",
   formatter: "/formatter",
 } as const
@@ -187,7 +206,7 @@ export const InstanceApi = HttpApi.make("instance")
           success: described(Schema.Array(Vcs.CommitFileDiff), "VCS commit file diff"),
         }).annotateMerge(
           OpenApi.annotations({
-            identifier: "vcs.commit.diff",
+            identifier: "vcs.commitDiff",
             summary: "Get VCS commit diff",
             description: "Retrieve the file changes introduced by a single commit.",
           }),
@@ -232,6 +251,63 @@ export const InstanceApi = HttpApi.make("instance")
             identifier: "app.skills",
             summary: "List skills",
             description: "Get a list of all available skills in the OpenCode system.",
+          }),
+        ),
+        HttpApiEndpoint.get("rule", InstancePaths.rule, {
+          query: WorkspaceRoutingQuery,
+          success: described(Schema.Array(RuleFile), "Effective instruction files"),
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "rule.files",
+            summary: "List effective rules",
+            description:
+              "List AGENTS.md and configured instruction files that apply to the current workspace, with their contents.",
+          }),
+        ),
+        HttpApiEndpoint.get("ruleUserList", InstancePaths.ruleUser, {
+          query: WorkspaceRoutingQuery,
+          success: described(Schema.Array(UserRule.Info), "User rules"),
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "rule.user.list",
+            summary: "List user rules",
+            description: "List the user-level personal rule entries with their enabled state.",
+          }),
+        ),
+        HttpApiEndpoint.post("ruleUserCreate", InstancePaths.ruleUser, {
+          query: WorkspaceRoutingQuery,
+          payload: UserRule.Create,
+          success: described(UserRule.Info, "Created user rule"),
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "rule.user.create",
+            summary: "Create a user rule",
+            description: "Create a new user-level personal rule. New rules are enabled by default.",
+          }),
+        ),
+        HttpApiEndpoint.patch("ruleUserUpdate", InstancePaths.ruleUserItem, {
+          query: WorkspaceRoutingQuery,
+          params: { id: Schema.String },
+          payload: UserRule.Update,
+          success: described(UserRule.Info, "Updated user rule"),
+          error: ApiUserRuleNotFoundError,
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "rule.user.update",
+            summary: "Update a user rule",
+            description: "Update the name, content, or enabled state of a user-level personal rule.",
+          }),
+        ),
+        HttpApiEndpoint.delete("ruleUserRemove", InstancePaths.ruleUserItem, {
+          query: WorkspaceRoutingQuery,
+          params: { id: Schema.String },
+          success: Schema.Void,
+          error: ApiUserRuleNotFoundError,
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "rule.user.remove",
+            summary: "Remove a user rule",
+            description: "Delete a user-level personal rule permanently.",
           }),
         ),
         HttpApiEndpoint.get("lsp", InstancePaths.lsp, {

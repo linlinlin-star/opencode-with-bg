@@ -2400,6 +2400,18 @@ export type Agent = {
   steps?: number
 }
 
+export type RuleFile = {
+  path: string
+  content: string
+}
+
+export type UserRuleNotFoundError = {
+  name: "UserRuleNotFoundError"
+  data: {
+    message: string
+  }
+}
+
 export type LspStatus = {
   id: string
   name: string
@@ -3903,6 +3915,7 @@ export type ProfileSelection = {
 }
 
 export type ProfileSkills = {
+  mode?: "inherit" | "deny"
   sources?: Array<SkillV2Source>
   selection?: ProfileSelection
 }
@@ -3916,6 +3929,15 @@ export type ProfileRules = {
 export type ProfileInfo = {
   skills?: ProfileSkills
   rules?: ProfileRules
+}
+
+export type UserRuleInfo = {
+  id: string
+  name: string
+  enabled: boolean
+  content: string
+  createdAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  updatedAt: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
 }
 
 export type ProjectDirectories = Array<{
@@ -8545,6 +8567,163 @@ export type AppSkillsResponses = {
 }
 
 export type AppSkillsResponse = AppSkillsResponses[keyof AppSkillsResponses]
+
+export type RuleFilesData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/rule"
+}
+
+export type RuleFilesErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type RuleFilesError = RuleFilesErrors[keyof RuleFilesErrors]
+
+export type RuleFilesResponses = {
+  /**
+   * Effective instruction files
+   */
+  200: Array<RuleFile>
+}
+
+export type RuleFilesResponse = RuleFilesResponses[keyof RuleFilesResponses]
+
+export type RuleUserListData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/rule/user"
+}
+
+export type RuleUserListErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type RuleUserListError = RuleUserListErrors[keyof RuleUserListErrors]
+
+export type RuleUserListResponses = {
+  /**
+   * User rules
+   */
+  200: Array<UserRuleInfo>
+}
+
+export type RuleUserListResponse = RuleUserListResponses[keyof RuleUserListResponses]
+
+export type RuleUserCreateData = {
+  body?: {
+    name: string
+    content: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/rule/user"
+}
+
+export type RuleUserCreateErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type RuleUserCreateError = RuleUserCreateErrors[keyof RuleUserCreateErrors]
+
+export type RuleUserCreateResponses = {
+  /**
+   * Created user rule
+   */
+  200: UserRuleInfo
+}
+
+export type RuleUserCreateResponse = RuleUserCreateResponses[keyof RuleUserCreateResponses]
+
+export type RuleUserRemoveData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/rule/user/{id}"
+}
+
+export type RuleUserRemoveErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * UserRuleNotFoundError
+   */
+  404: UserRuleNotFoundError
+}
+
+export type RuleUserRemoveError = RuleUserRemoveErrors[keyof RuleUserRemoveErrors]
+
+export type RuleUserRemoveResponses = {
+  /**
+   * <No Content>
+   */
+  200: unknown
+}
+
+export type RuleUserUpdateData = {
+  body?: {
+    name?: string
+    content?: string
+    enabled?: boolean
+  }
+  path: {
+    id: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/rule/user/{id}"
+}
+
+export type RuleUserUpdateErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * UserRuleNotFoundError
+   */
+  404: UserRuleNotFoundError
+}
+
+export type RuleUserUpdateError = RuleUserUpdateErrors[keyof RuleUserUpdateErrors]
+
+export type RuleUserUpdateResponses = {
+  /**
+   * Updated user rule
+   */
+  200: UserRuleInfo
+}
+
+export type RuleUserUpdateResponse = RuleUserUpdateResponses[keyof RuleUserUpdateResponses]
 
 export type LspStatusData = {
   body?: never

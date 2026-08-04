@@ -11,6 +11,7 @@ import { Flag } from "@opencode-ai/core/flag/flag"
 import { FSUtil } from "@opencode-ai/core/fs-util"
 import { withTransientReadRetry } from "@/util/effect-http-client"
 import { Global } from "@opencode-ai/core/global"
+import { UserRule } from "@/user-rules"
 import type { MessageV2 } from "./message-v2"
 import type { MessageID } from "./schema"
 
@@ -34,6 +35,7 @@ function extract(messages: SessionV1.WithParts[]) {
 export interface Interface {
   readonly clear: (messageID: MessageID) => Effect.Effect<void>
   readonly systemPaths: () => Effect.Effect<Set<string>, FSUtil.Error>
+  readonly files: () => Effect.Effect<{ filepath: string; content: string }[], FSUtil.Error>
   readonly system: () => Effect.Effect<string[], FSUtil.Error>
   readonly find: (dir: string) => Effect.Effect<string | undefined, FSUtil.Error>
   readonly resolve: (
@@ -48,7 +50,12 @@ export class Service extends Context.Service<Service, Interface>()("@opencode/In
 const layer: Layer.Layer<
   Service,
   never,
-  FSUtil.Service | Config.Service | Global.Service | HttpClient.HttpClient | RuntimeFlags.Service
+  | FSUtil.Service
+  | Config.Service
+  | Global.Service
+  | HttpClient.HttpClient
+  | RuntimeFlags.Service
+  | UserRule.Service
 > = Layer.effect(
   Service,
   Effect.gen(function* () {
@@ -56,6 +63,7 @@ const layer: Layer.Layer<
     const fs = yield* FSUtil.Service
     const global = yield* Global.Service
     const flags = yield* RuntimeFlags.Service
+    const rules = yield* UserRule.Service
     const http = HttpClient.filterStatusOk(withTransientReadRetry(yield* HttpClient.HttpClient))
     const globalFiles = [
       path.join(global.config, "AGENTS.md"),
@@ -152,6 +160,21 @@ const layer: Layer.Layer<
       return paths
     })
 
+    const files = Effect.fn("Instruction.files")(function* () {
+      const paths = yield* systemPaths()
+      const contents = yield* Effect.forEach(Array.from(paths), read, { concurrency: 8 })
+      const userRules = yield* rules.enabledContents()
+      return [
+        ...Array.from(paths).flatMap((item, i) =>
+          contents[i] ? [{ filepath: item, content: contents[i] }] : [],
+        ),
+        ...userRules.map((rule) => ({
+          filepath: `<user-rule: ${rule.name}>`,
+          content: rule.content,
+        })),
+      ]
+    })
+
     const system = Effect.fn("Instruction.system")(function* () {
       const config = yield* cfg.get()
       const paths = yield* systemPaths()
@@ -161,10 +184,12 @@ const layer: Layer.Layer<
 
       const files = yield* Effect.forEach(Array.from(paths), read, { concurrency: 8 })
       const remote = yield* Effect.forEach(urls, fetch, { concurrency: 4 })
+      const userRules = yield* rules.enabledContents()
 
       return [
         ...Array.from(paths).flatMap((item, i) => (files[i] ? [`Instructions from: ${item}\n${files[i]}`] : [])),
         ...urls.flatMap((item, i) => (remote[i] ? [`Instructions from: ${item}\n${remote[i]}`] : [])),
+        ...userRules.map((rule) => `Instructions from: <user-rule: ${rule.name}>\n${rule.content}`),
       ]
     })
 
@@ -220,7 +245,7 @@ const layer: Layer.Layer<
       return results
     })
 
-    return Service.of({ clear, systemPaths, system, find, resolve })
+    return Service.of({ clear, systemPaths, files, system, find, resolve })
   }),
 )
 
@@ -231,7 +256,7 @@ export function loaded(messages: SessionV1.WithParts[]) {
 export const node = LayerNode.make({
   service: Service,
   layer: layer,
-  deps: [Config.node, FSUtil.node, Global.node, RuntimeFlags.node, httpClient],
+  deps: [Config.node, FSUtil.node, Global.node, RuntimeFlags.node, UserRule.node, httpClient],
 })
 
 export * as Instruction from "./instruction"

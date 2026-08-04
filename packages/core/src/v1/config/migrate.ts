@@ -29,7 +29,11 @@ const keys = new Set([
 
 export function isV1(input: unknown) {
   if (typeof input !== "object" || input === null || Array.isArray(input)) return false
-  return Object.keys(input).some((key) => keys.has(key))
+  const record = input as Record<string, unknown>
+  if (Object.keys(record).some((key) => keys.has(key))) return true
+  // A V1-style `skills` object ({ paths, urls }) marks the document as V1;
+  // V2 documents use a plain `skills: string[]` array instead.
+  return typeof record.skills === "object" && record.skills !== null && !Array.isArray(record.skills)
 }
 
 export function migrate(info: typeof ConfigV1.Info.Type) {
