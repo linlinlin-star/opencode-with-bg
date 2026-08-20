@@ -1,6 +1,6 @@
 {
   "name": "@opencode-ai/session-ui",
-  "version": "1.18.11",
+  "version": "1.18.19",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -55,8 +55,6 @@
     "fuzzysort": "catalog:",
     "luxon": "catalog:",
     "marked": "catalog:",
-    "marked-katex-extension": "5.1.6",
-    "marked-shiki": "catalog:",
     "mermaid": "^11.4.0",
     "morphdom": "2.7.8",
     "motion": "12.34.5",
